@@ -1,0 +1,16 @@
+# OS
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+
+# エディタ / IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+
+# ログ・一時ファイル
+*.log
+tmp/

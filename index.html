@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e0c">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="出勤するだけで金額と労働時間がリアルタイムに積み上がる給料メーター">
+<title>今いくら?</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="status" id="statusBadge"><span class="dot"></span><span id="statusText">待機中</span></div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="openCalendar" type="button" aria-label="カレンダー">暦</button>
+      <button class="icon-btn" id="openSettings" type="button" aria-label="設定">設定</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ① 秒単位で増え続ける金額(最優先・最も大きく) -->
+    <section class="panel ticker">
+      <div class="row-label"><span id="tickerLabel">今このセッション</span></div>
+      <div class="amount-row">
+        <div class="amount amount--main is-masked" id="liveAmount">
+          <span class="yen">¥</span><span id="liveInt">0</span><span class="dec" id="liveDec">.00</span>
+        </div>
+        <button class="eye" id="eyeBtn" type="button" aria-label="金額を表示(押している間だけ表示)">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+        </button>
+      </div>
+      <div class="ticker-sub" id="liveMeta">出勤していません</div>
+      <div class="rate-strip" id="rateStrip" hidden></div>
+    </section>
+
+    <!-- ②今日 ③今月(常時表示・①より小さく) -->
+    <section class="cards">
+      <div class="panel card">
+        <div class="row-label">今日</div>
+        <div class="amount amount--sub is-masked" id="todayAmount">¥0</div>
+        <div class="card-sub" id="todaySub">0:00</div>
+      </div>
+      <div class="panel card">
+        <div class="row-label">今月</div>
+        <div class="amount amount--sub is-masked" id="monthAmount">¥0</div>
+        <div class="card-sub">
+          <span id="monthSub">0:00</span>
+          <span class="diff" id="monthDiff" hidden></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ③ 操作(手動: 出勤/退勤 の2つだけ / 自動モード: 残業開始・終了のみ) -->
+    <section class="actions">
+      <button class="btn btn--in" id="clockInBtn" type="button">出勤</button>
+      <button class="btn btn--out" id="clockOutBtn" type="button">退勤</button>
+      <button class="btn btn--ghost" id="overtimeBtn" type="button" hidden>残業開始</button>
+    </section>
+
+    <!-- ④ 補助情報(デフォルト折りたたみ) -->
+    <details class="panel details" id="detailsPanel">
+      <summary>内訳と目安</summary>
+      <div id="detailsBody" class="details-body"></div>
+    </details>
+
+    <p class="disclaimer">
+      表示は体感用の目安です。会社の勤怠記録・給与明細の金額とは一致しません。
+    </p>
+  </main>
+</div>
+
+<!-- ------------------------------------------------------------ 設定 -->
+<dialog id="settingsDialog" class="sheet">
+  <form method="dialog" class="sheet-head">
+    <h2 id="settingsTitle">設定</h2>
+    <button class="icon-btn" value="close" type="submit" aria-label="閉じる">×</button>
+  </form>
+  <div class="sheet-body">
+    <p class="first-run" id="firstRunNote" hidden>
+      はじめに、基本給と働き方を登録してください。データはこの端末のブラウザ内にのみ保存されます。
+    </p>
+
+    <label class="field">
+      <span class="field-label">基本給(月額・円)</span>
+      <span class="field-inline">
+        <input id="setSalary" type="password" inputmode="numeric" autocomplete="off" placeholder="300000">
+        <button class="icon-btn" id="salaryEye" type="button" aria-label="基本給の表示を切り替え">表示</button>
+      </span>
+      <span class="hint">覗き見防止のため常にマスク表示にしています。</span>
+    </label>
+
+    <label class="field">
+      <span class="field-label">1日の所定労働時間(時間)</span>
+      <input id="setDailyHours" type="number" step="0.25" min="1" max="24" inputmode="decimal">
+    </label>
+
+    <label class="field">
+      <span class="field-label">年間所定休日数(日)</span>
+      <input id="setAnnualHolidays" type="number" step="1" min="0" max="365" inputmode="numeric">
+    </label>
+
+    <label class="field">
+      <span class="field-label">賃金締め日</span>
+      <select id="setClosingDay"></select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">法定休日の曜日</span>
+      <select id="setLegalWeekday"></select>
+      <span class="hint">この曜日の出勤だけが35%増(法定休日労働)の対象になります。</span>
+    </label>
+
+    <div class="field">
+      <span class="field-label">所定労働日の曜日</span>
+      <div class="weekday-picker" id="setWorkdays"></div>
+      <span class="hint">総枠(所定労働時間)の計算と、自動モードの勤務予定日に使います。</span>
+    </div>
+
+    <div class="field">
+      <span class="field-label">休憩時間帯</span>
+      <div class="field-inline">
+        <input id="setBreakStart" type="time">
+        <span class="tilde">〜</span>
+        <input id="setBreakEnd" type="time">
+      </div>
+      <label class="check"><input id="setNoBreakWindow" type="checkbox"> 登録しない(実働から一律60分を控除)</label>
+      <span class="hint">休憩は打刻しません。登録した時間帯と重なった分だけ自動で差し引きます。</span>
+    </div>
+
+    <label class="field">
+      <span class="field-label">勤務間インターバルの目安(時間)</span>
+      <input id="setInterval" type="number" step="1" min="0" max="24" inputmode="numeric">
+    </label>
+
+    <div class="field">
+      <label class="check"><input id="setAutoMode" type="checkbox"> 自動モード(出勤/退勤ボタンを使わない)</label>
+      <div class="field-inline" id="scheduleRow">
+        <input id="setScheduleStart" type="time">
+        <span class="tilde">〜</span>
+        <input id="setScheduleEnd" type="time">
+      </div>
+      <span class="hint">勤務予定の曜日は「所定労働日の曜日」と共通です。残業する日は、退勤予定時刻を迎える前に「残業開始」を押してください。</span>
+    </div>
+
+    <details class="note">
+      <summary>データの保存とリセットについて</summary>
+      <p>個人データはサーバーへ送信されず、この端末のブラウザ内(localStorage)にのみ保存されます。次の場合はすべて消えます。復元手段はありません。</p>
+      <ul>
+        <li>ブラウザの「閲覧履歴データを削除」「サイトデータを削除」等を行った場合</li>
+        <li>シークレットモード/プライベートブラウジングで使っていた場合(タブを閉じた時点で消える)</li>
+        <li>ブラウザアプリ自体をアンインストールした場合</li>
+        <li>端末を機種変更・初期化した場合(自動的な引き継ぎはありません)</li>
+        <li>普段と違うブラウザや別の端末で開いた場合(ブラウザ+端末ごとに独立)</li>
+        <li>ブラウザのストレージ容量が逼迫し、自動的にサイトデータが削除された場合</li>
+        <li>ホーム画面に追加したアイコンを削除して入れ直した場合</li>
+      </ul>
+      <p>通常の再読み込み、ブラウザを閉じて開き直す操作、端末の再起動、オフラインでの使用では消えません。</p>
+    </details>
+
+    <details class="note">
+      <summary>この数字について</summary>
+      <p>本アプリは額面(グロス)の労働対価のみを可視化します。社会保険料・所得税・住民税などの控除、年末調整、賞与は対象外です。</p>
+      <p>打刻はこのアプリ上での個人の記録であり、会社の勤怠システムとは別物です。表示される金額は体感用の目安で、給与明細と一致しないことがあります。正式な給与計算・労務相談の代替ではありません。</p>
+    </details>
+
+    <div class="sheet-actions">
+      <button class="btn btn--ghost danger" id="resetAllBtn" type="button">すべてのデータを消す</button>
+      <button class="btn btn--in" id="saveSettingsBtn" type="button">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- -------------------------------------------------------- カレンダー -->
+<dialog id="calendarDialog" class="sheet">
+  <form method="dialog" class="sheet-head">
+    <h2>カレンダー</h2>
+    <button class="icon-btn" value="close" type="submit" aria-label="閉じる">×</button>
+  </form>
+  <div class="sheet-body">
+    <div class="cal-nav">
+      <button class="icon-btn" id="calPrev" type="button" aria-label="前の月">‹</button>
+      <span id="calTitle">-</span>
+      <button class="icon-btn" id="calNext" type="button" aria-label="次の月">›</button>
+    </div>
+    <div class="cal-grid" id="calHead"></div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><i class="sw sw--work"></i>出勤</span>
+      <span><i class="sw sw--leave"></i>有給</span>
+      <span><i class="sw sw--legal"></i>法定休日</span>
+      <span><i class="sw sw--scheduled"></i>所定休日</span>
+      <span><i class="sw sw--auto"></i>未入力(自動加算)</span>
+    </div>
+    <p class="hint">日別の記録は今月と先月ぶんだけ保持します(締め日を過ぎると自動的に整理されます)。</p>
+  </div>
+</dialog>
+
+<!-- ------------------------------------------------------------ 日編集 -->
+<dialog id="dayDialog" class="sheet sheet--narrow">
+  <form method="dialog" class="sheet-head">
+    <h2 id="dayTitle">-</h2>
+    <button class="icon-btn" value="close" type="submit" aria-label="閉じる">×</button>
+  </form>
+  <div class="sheet-body">
+    <div class="field">
+      <span class="field-label">この日の扱い</span>
+      <div class="seg" id="dayKind">
+        <button type="button" data-kind="none">指定なし</button>
+        <button type="button" data-kind="work">出勤</button>
+        <button type="button" data-kind="paid_leave">有給</button>
+        <button type="button" data-kind="company_holiday">会社休日</button>
+      </div>
+    </div>
+
+    <div class="field" id="dayWorkRow" hidden>
+      <span class="field-label">出勤 / 退勤</span>
+      <div class="field-inline">
+        <input id="dayIn" type="time">
+        <span class="tilde">〜</span>
+        <input id="dayOut" type="time">
+      </div>
+      <label class="check"><input id="dayOvernight" type="checkbox"> 退勤は翌日</label>
+      <label class="check"><input id="dayIsLegalHoliday" type="checkbox"> この日は法定休日(35%増)</label>
+    </div>
+
+    <div class="field" id="dayHolidayRow" hidden>
+      <span class="field-label">休日の種類</span>
+      <div class="seg" id="dayHolidayKind">
+        <button type="button" data-holiday="legal">法定休日</button>
+        <button type="button" data-holiday="scheduled">所定休日(法定超)</button>
+      </div>
+      <span class="hint">法定休日の出勤のみ35%増になります。所定休日は通常の所定内/法定内残業/法定時間外で計算します。</span>
+    </div>
+
+    <p class="hint" id="dayNote"></p>
+
+    <div class="sheet-actions">
+      <button class="btn btn--ghost" id="dayCancel" type="button">閉じる</button>
+      <button class="btn btn--in" id="daySave" type="button">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="src/constants.js"></script>
+<script src="src/time.js"></script>
+<script src="src/period.js"></script>
+<script src="src/wage.js"></script>
+<script src="src/aggregate.js"></script>
+<script src="src/storage.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

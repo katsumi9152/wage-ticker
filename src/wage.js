@@ -1,0 +1,354 @@
+/**
+ * wage.js — 給与計算のコア(純粋関数 / DOM 非依存 / SPEC 3章・5章)
+ *
+ * ここでは「フレックスタイム制(コアタイムなし)」を前提に、1日8時間超・週40時間超
+ * という日次/週次の残業判定は行わない(SPEC 3.2)。清算期間の累計実働時間を
+ *   所定労働時間の総枠 -> 法定労働時間の総枠 -> それ超
+ * の順に消化していくカーソル方式で区分する。
+ */
+(function (WT) {
+  'use strict';
+
+  var T = WT.time;
+  var RATE = WT.RATE;
+
+  // ---------------------------------------------------------------- 単価
+
+  /**
+   * 設定から派生値(月平均所定労働時間・基礎時給単価)を求める(SPEC 3.1)。
+   * 基礎時給単価は端数処理せずそのまま使う(SPEC 9: 端数処理は適用しない)。
+   */
+  function deriveRates(settings) {
+    var annualWorkDays = WT.DAYS_IN_YEAR - Number(settings.annualHolidays || 0);
+    var monthlyAvgScheduledHours = (annualWorkDays * Number(settings.dailyScheduledHours || 0)) / 12;
+    var base = Number(settings.monthlyBaseSalary || 0);
+    var baseHourlyRate = monthlyAvgScheduledHours > 0 ? base / monthlyAvgScheduledHours : 0;
+    return {
+      annualWorkDays: annualWorkDays,
+      monthlyAvgScheduledHours: monthlyAvgScheduledHours,
+      baseHourlyRate: baseHourlyRate,
+      /** 1ミリ秒あたりの所定内単価(なめらかな表示の基準値) */
+      baseRatePerMs: baseHourlyRate / 3600000,
+    };
+  }
+
+  // ------------------------------------------------------------ 休憩控除
+
+  /**
+   * 休憩時間帯が未登録のときの控除分数(SPEC 5.2 の「一律60分」)。
+   *
+   * 素朴に常時60分を引くと、出勤直後の実働がマイナスになり
+   * 「開いた瞬間に増えている」体験(SPEC 1.1)が壊れるため、
+   * 所定的な1日(FLAT_BREAK_RAMP_MINUTES)をかけて滑らかに引き切る。
+   * 8時間以上働いた時点で控除はちょうど60分となり SPEC の一律60分と一致する。
+   */
+  function flatBreakDeduction(rawMinutes) {
+    if (rawMinutes <= 0) return 0;
+    var ratio = Math.min(1, rawMinutes / WT.FLAT_BREAK_RAMP_MINUTES);
+    return WT.DEFAULT_BREAK_MINUTES * ratio;
+  }
+
+  /**
+   * 1回の打刻区間から、休憩控除後の実働セグメント(深夜/非深夜に分割済み)を作る。
+   * SPEC 5.2: 休憩は打刻せず、登録済みの時間帯と重なった分だけ自動控除する。
+   *
+   * @param {number} startMs 出勤時刻
+   * @param {number} endMs   退勤時刻(リアルタイム表示中は現在時刻)
+   * @param {?{start:string,end:string}} breakWindow 休憩時間帯(null なら一律控除)
+   */
+  function sessionWork(startMs, endMs, breakWindow) {
+    var rawMinutes = Math.max(0, (endMs - startMs) / T.MS_PER_MINUTE);
+    var segments = T.splitByNight(startMs, endMs);
+    var deductedMinutes = 0;
+
+    if (breakWindow && T.parseTimeToMinutes(breakWindow.start) !== null && T.parseTimeToMinutes(breakWindow.end) !== null) {
+      var before = T.totalMinutes(segments);
+      segments = T.subtractWindows(segments, T.breakWindowsIn(startMs, endMs, breakWindow));
+      deductedMinutes = before - T.totalMinutes(segments);
+    } else {
+      deductedMinutes = Math.min(rawMinutes, flatBreakDeduction(rawMinutes));
+      segments = T.trimFromStart(segments, deductedMinutes);
+    }
+
+    return {
+      rawMinutes: rawMinutes,
+      deductedMinutes: deductedMinutes,
+      workedMinutes: T.totalMinutes(segments),
+      segments: segments.map(function (s) {
+        return { minutes: (s.endMs - s.startMs) / T.MS_PER_MINUTE, isNight: s.isNight, startMs: s.startMs, endMs: s.endMs };
+      }),
+    };
+  }
+
+  // -------------------------------------------------------------- 区分計算
+
+  function emptyBucket() {
+    return { minutes: 0, amount: 0 };
+  }
+
+  /** 区分別内訳の空オブジェクト */
+  function emptyBreakdown() {
+    return {
+      scheduledInside: emptyBucket(), // 所定内
+      legalInsideOvertime: emptyBucket(), // 法定内残業
+      statutoryOvertime: emptyBucket(), // 法定時間外(60hまで)
+      statutoryOvertimeOver60: emptyBucket(), // 法定時間外(60h超)
+      legalHoliday: emptyBucket(), // 法定休日労働
+      night: emptyBucket(), // 深夜割増(他区分に加算される分のみ)
+      workedMinutes: 0,
+      /** 画面に積み上げる金額(所定内も1.00で計上) */
+      amount: 0,
+      /** うち、基本給とは別に発生した追加支払い分 */
+      extraAmount: 0,
+      /** 未入力日から自動加算された分(SPEC 6.2) */
+      autoFilledMinutes: 0,
+      autoFilledAmount: 0,
+    };
+  }
+
+  var BUCKET_KEYS = [
+    'scheduledInside',
+    'legalInsideOvertime',
+    'statutoryOvertime',
+    'statutoryOvertimeOver60',
+    'legalHoliday',
+    'night',
+  ];
+
+  function addBreakdown(target, src) {
+    for (var i = 0; i < BUCKET_KEYS.length; i++) {
+      var k = BUCKET_KEYS[i];
+      target[k].minutes += src[k].minutes;
+      target[k].amount += src[k].amount;
+    }
+    target.workedMinutes += src.workedMinutes;
+    target.amount += src.amount;
+    target.extraAmount += src.extraAmount;
+    target.autoFilledMinutes += src.autoFilledMinutes;
+    target.autoFilledAmount += src.autoFilledAmount;
+    return target;
+  }
+
+  function cloneBreakdown(src) {
+    return addBreakdown(emptyBreakdown(), src);
+  }
+
+  /**
+   * 清算期間内の消化状況を持つカーソル。
+   * frameMinutes は「所定/法定の総枠を消化した分」。法定休日労働は時間外労働の
+   * 枠に算入しない扱いのため、frameMinutes には加算せず holidayMinutes に分ける。
+   */
+  function createCursor(frames) {
+    return {
+      scheduledFrameMinutes: frames.scheduledFrameMinutes,
+      legalFrameMinutes: frames.legalFrameMinutes,
+      frameMinutes: 0, // 総枠を消化した分(法定休日労働を除く)
+      statutoryOvertimeMinutes: 0, // 60hラインの判定用
+      holidayMinutes: 0,
+      workedMinutes: 0, // 実働合計(法定休日労働も含む)
+    };
+  }
+
+  function cloneCursor(cursor) {
+    return {
+      scheduledFrameMinutes: cursor.scheduledFrameMinutes,
+      legalFrameMinutes: cursor.legalFrameMinutes,
+      frameMinutes: cursor.frameMinutes,
+      statutoryOvertimeMinutes: cursor.statutoryOvertimeMinutes,
+      holidayMinutes: cursor.holidayMinutes,
+      workedMinutes: cursor.workedMinutes,
+    };
+  }
+
+  function pushBucket(bucket, minutes, rate, baseHourlyRate) {
+    if (minutes <= 0) return 0;
+    var amount = (minutes / 60) * rate * baseHourlyRate;
+    bucket.minutes += minutes;
+    bucket.amount += amount;
+    return amount;
+  }
+
+  /**
+   * セグメント列をカーソルに沿って区分し、内訳を返す(SPEC 5.4)。
+   * cursor は破壊的に更新される(呼び出し側で cloneCursor して使う)。
+   *
+   * @param {object} cursor createCursor() の戻り値
+   * @param {Array<{minutes:number,isNight:boolean}>} segments
+   * @param {{isLegalHoliday:boolean, baseHourlyRate:number, autoFilled?:boolean}} opts
+   */
+  function allocateSegments(cursor, segments, opts) {
+    var bd = emptyBreakdown();
+    var baseHourlyRate = opts.baseHourlyRate;
+    var isLegalHoliday = !!opts.isLegalHoliday;
+
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      var minutes = seg.minutes;
+      if (minutes <= 0) continue;
+
+      if (isLegalHoliday) {
+        // 法定休日労働は 1.35 固定。深夜と重なれば +0.25 で 1.60(SPEC 3.3)。
+        // 時間外労働の枠(所定/法定の総枠・月60hライン)には算入しない。
+        pushBucket(bd.legalHoliday, minutes, RATE.LEGAL_HOLIDAY, baseHourlyRate);
+        if (seg.isNight) pushBucket(bd.night, minutes, RATE.NIGHT_PREMIUM, baseHourlyRate);
+        cursor.holidayMinutes += minutes;
+        cursor.workedMinutes += minutes;
+        bd.workedMinutes += minutes;
+        continue;
+      }
+
+      var rest = minutes;
+
+      // ① 所定内労働(所定労働時間の総枠内)
+      var scheduledRemain = Math.max(0, cursor.scheduledFrameMinutes - cursor.frameMinutes);
+      var inScheduled = Math.min(rest, scheduledRemain);
+      if (inScheduled > 0) {
+        pushBucket(bd.scheduledInside, inScheduled, RATE.SCHEDULED_INSIDE, baseHourlyRate);
+        cursor.frameMinutes += inScheduled;
+        rest -= inScheduled;
+      }
+
+      // ② 法定内残業(所定超・法定内)
+      if (rest > 0) {
+        var legalRemain = Math.max(
+          0,
+          cursor.legalFrameMinutes - Math.max(cursor.frameMinutes, cursor.scheduledFrameMinutes)
+        );
+        var inLegalInside = Math.min(rest, legalRemain);
+        if (inLegalInside > 0) {
+          pushBucket(bd.legalInsideOvertime, inLegalInside, RATE.LEGAL_INSIDE_OVERTIME, baseHourlyRate);
+          cursor.frameMinutes += inLegalInside;
+          rest -= inLegalInside;
+        }
+      }
+
+      // ③ 法定時間外労働(月60hを境に 1.25 / 1.50)
+      if (rest > 0) {
+        var under60Remain = Math.max(0, WT.OVER60_THRESHOLD_MINUTES - cursor.statutoryOvertimeMinutes);
+        var under60 = Math.min(rest, under60Remain);
+        if (under60 > 0) {
+          pushBucket(bd.statutoryOvertime, under60, RATE.STATUTORY_OVERTIME, baseHourlyRate);
+        }
+        var over60 = rest - under60;
+        if (over60 > 0) {
+          pushBucket(bd.statutoryOvertimeOver60, over60, RATE.STATUTORY_OVERTIME_OVER60, baseHourlyRate);
+        }
+        cursor.statutoryOvertimeMinutes += rest;
+        cursor.frameMinutes += rest;
+        rest = 0;
+      }
+
+      // ④ 深夜割増(①〜③のいずれと重なっても +0.25)
+      if (seg.isNight) {
+        pushBucket(bd.night, minutes, RATE.NIGHT_PREMIUM, baseHourlyRate);
+      }
+
+      cursor.workedMinutes += minutes;
+      bd.workedMinutes += minutes;
+    }
+
+    bd.amount =
+      bd.scheduledInside.amount +
+      bd.legalInsideOvertime.amount +
+      bd.statutoryOvertime.amount +
+      bd.statutoryOvertimeOver60.amount +
+      bd.legalHoliday.amount +
+      bd.night.amount;
+    bd.extraAmount = bd.amount - bd.scheduledInside.amount;
+
+    if (opts.autoFilled) {
+      bd.autoFilledMinutes = bd.workedMinutes;
+      bd.autoFilledAmount = bd.amount;
+    }
+    return bd;
+  }
+
+  /**
+   * 打刻区間ひとつぶんの金額を計算する(SPEC 5.4 calcEarnings)。
+   * 手動モードでも自動モードでも、この関数を共通で使う(SPEC 14)。
+   */
+  function calcEarnings(cursor, startMs, endMs, settings, rates, opts) {
+    var o = opts || {};
+    var work = sessionWork(startMs, endMs, settings.breakWindow);
+    var breakdown = allocateSegments(cursor, work.segments, {
+      isLegalHoliday: !!o.isLegalHoliday,
+      baseHourlyRate: rates.baseHourlyRate,
+      autoFilled: !!o.autoFilled,
+    });
+    return {
+      rawMinutes: work.rawMinutes,
+      deductedMinutes: work.deductedMinutes,
+      workedMinutes: work.workedMinutes,
+      onBreak: work.segments.length > 0 ? isOnBreakAt(endMs, startMs, settings.breakWindow) : false,
+      breakdown: breakdown,
+    };
+  }
+
+  /** いま休憩時間帯の中か(カウンターを止める判定・SPEC 5.3) */
+  function isOnBreakAt(ms, sessionStartMs, breakWindow) {
+    if (!breakWindow) return false;
+    var windows = T.breakWindowsIn(Math.min(sessionStartMs, ms), ms + 1, breakWindow);
+    for (var i = 0; i < windows.length; i++) {
+      if (ms >= windows[i].startMs && ms < windows[i].endMs) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 所定労働時間分をまるごと所定内として計上する(有給休暇・未入力日 / SPEC 6.1・6.2)。
+   * 深夜・休日・時間外の割増対象にはしない。
+   */
+  function allocateScheduledDay(cursor, settings, rates, opts) {
+    var minutes = Number(settings.dailyScheduledHours || 0) * 60;
+    return allocateSegments(cursor, [{ minutes: minutes, isNight: false }], {
+      isLegalHoliday: false,
+      baseHourlyRate: rates.baseHourlyRate,
+      autoFilled: !!(opts && opts.autoFilled),
+    });
+  }
+
+  /**
+   * 現時点の限界単価(1ミリ秒あたりいくら増えているか)。
+   * リアルタイム描画のなめらかさと、割増時間帯の色味変化(SPEC 1.2)に使う。
+   */
+  function marginalRate(cursor, rates, opts) {
+    var o = opts || {};
+    if (o.onBreak) return { rate: 0, kind: 'break', perMs: 0 };
+    var kind, rate;
+    if (o.isLegalHoliday) {
+      kind = 'legalHoliday';
+      rate = RATE.LEGAL_HOLIDAY;
+    } else if (cursor.frameMinutes < cursor.scheduledFrameMinutes) {
+      kind = 'scheduledInside';
+      rate = RATE.SCHEDULED_INSIDE;
+    } else if (cursor.frameMinutes < cursor.legalFrameMinutes) {
+      kind = 'legalInsideOvertime';
+      rate = RATE.LEGAL_INSIDE_OVERTIME;
+    } else if (cursor.statutoryOvertimeMinutes < WT.OVER60_THRESHOLD_MINUTES) {
+      kind = 'statutoryOvertime';
+      rate = RATE.STATUTORY_OVERTIME;
+    } else {
+      kind = 'statutoryOvertimeOver60';
+      rate = RATE.STATUTORY_OVERTIME_OVER60;
+    }
+    if (o.isNight) rate += RATE.NIGHT_PREMIUM;
+    return { rate: rate, kind: kind, perMs: (rates.baseHourlyRate * rate) / 3600000 };
+  }
+
+  WT.wage = {
+    deriveRates: deriveRates,
+    flatBreakDeduction: flatBreakDeduction,
+    sessionWork: sessionWork,
+    emptyBreakdown: emptyBreakdown,
+    addBreakdown: addBreakdown,
+    cloneBreakdown: cloneBreakdown,
+    createCursor: createCursor,
+    cloneCursor: cloneCursor,
+    allocateSegments: allocateSegments,
+    allocateScheduledDay: allocateScheduledDay,
+    calcEarnings: calcEarnings,
+    isOnBreakAt: isOnBreakAt,
+    marginalRate: marginalRate,
+    BUCKET_KEYS: BUCKET_KEYS,
+  };
+})((globalThis.WT = globalThis.WT || {}));
