@@ -294,6 +294,32 @@
     }), 'カレンダー指定で法定休日にできる');
   });
 
+  test('徹夜勤務は出勤した日の労働として通算する', function () {
+    // 労基法の解釈では、継続勤務が2暦日にわたる場合は始業日の労働として扱う
+    var settings = baseSettings();
+    var calendar = {
+      '2026-09-03': {
+        type: 'work',
+        clockIn: at(2026, 9, 3, 21, 0),
+        clockOut: at(2026, 9, 4, 6, 0),
+        isLegalHoliday: false,
+      },
+      // 翌日は「継続日」の印。二重に数えないための目印。
+      '2026-09-04': { type: 'work', coveredBy: '2026-09-03' },
+    };
+    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
+    var agg = A.aggregatePeriod({ period: period, settings: settings, calendar: calendar, activeSession: null, now: day(2026, 9, 10) });
+
+    var overnight = null;
+    for (var i = 0; i < agg.days.length; i++) {
+      if (agg.days[i].date === '2026-09-03') overnight = agg.days[i];
+    }
+    ok(!!overnight, '出勤した日の記録になっていない');
+    near(overnight.workedMinutes, 540, 1e-9, '21:00〜6:00 の9時間');
+    near(overnight.breakdown.night.minutes, 420, 1e-9, '22:00〜5:00 の7時間が深夜割増');
+    eq(agg.unfilledDates.indexOf('2026-09-04'), -1, '翌日を未入力として二重に数えてはいけない');
+  });
+
   test('打刻ありの日は3〜5章のロジックで再計算される', function () {
     var settings = baseSettings();
     var calendar = {

@@ -474,6 +474,12 @@
       fmtHours(Math.max(0, WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes)) +
       ' / 月60時間(割増率1.50に変わるライン)まで残り ' +
       fmtHours(Math.max(0, WT.OVER60_THRESHOLD_MINUTES - otMinutes)) + '</p>';
+    // 単月100時間未満は、特別条項があっても超えられない法律上の上限(休日労働を含む)
+    var singleMonthMinutes = otMinutes + b.legalHoliday.minutes;
+    html += kv('単月100時間まで(休日労働を含む)',
+      singleMonthMinutes < WT.AGREEMENT_36.MONTHLY_HARD_MINUTES
+        ? '残り ' + fmtHours(WT.AGREEMENT_36.MONTHLY_HARD_MINUTES - singleMonthMinutes)
+        : '超過');
     html += kv('直近' + stats.monthsCounted + 'ヶ月の累計', stats.annualOvertimeHours.toFixed(1) + ' 時間');
     html += kv('月45時間超の回数', stats.over45Count + ' 回');
     for (var i = 0; i < stats.averages.length; i++) {
@@ -489,6 +495,11 @@
     var bn = A.breakNotice(todayMinutes, todayDeducted);
     if (bn) {
       notices.push('本日は休憩の控除なしで' + bn.threshold + '時間を超えています(法定は' + bn.requiredMinutes + '分以上)。');
+    }
+    // 徹夜勤務は始業日の労働として通算する。丸1日を超えたら押し忘れの可能性が高い。
+    if (live && live.rawMinutes > 24 * 60) {
+      notices.push('出勤から ' + T.formatMinutesJa(live.rawMinutes) +
+        ' 続いています。退勤の押し忘れかもしれません(カレンダーから実際の時刻に直せます)。');
     }
     if (notices.length) {
       html += '<div class="sec"><h3>気づき</h3>';
