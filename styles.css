@@ -646,7 +646,6 @@ dialog.sheet {
   max-height: 92svh;
   margin: auto auto 0;
   padding: 0;
-  display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 22px 22px 0 0;
@@ -654,9 +653,15 @@ dialog.sheet {
   color: var(--ink);
   overflow: hidden;
 }
+/*
+ * display は [open] のときだけ flex にする。dialog.sheet { display: flex } と
+ * 無条件に書くと、閉じているとき(open属性なし)にブラウザが本来 display: none
+ * にする挙動を上書きしてしまい、閉じたダイアログが本文の下に地続きで
+ * ずっと表示され続けるバグになる(実際に起きていた不具合)。
+ */
+dialog.sheet[open] { display: flex; animation: sheet-in 0.22s ease-out; }
 dialog.sheet::backdrop { background: rgba(6, 11, 20, 0.55); backdrop-filter: blur(3px); }
 dialog.sheet--narrow { max-height: 88svh; }
-dialog.sheet[open] { animation: sheet-in 0.22s ease-out; }
 @keyframes sheet-in {
   from { transform: translateY(18px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
