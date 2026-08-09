@@ -38,10 +38,10 @@
      hero(主役の金額)> xl(今日/今月)> lg(見出し)> md(本文)> sm(補足)> xs(注記) */
   --fs-hero: clamp(38px, 12vw, 52px);
   --fs-xl: clamp(22px, 7vw, 28px);
-  --fs-lg: 17px;
-  --fs-md: 14px;
-  --fs-sm: 12.5px;
-  --fs-xs: 11px;
+  --fs-lg: 18px;
+  --fs-md: 15px;
+  --fs-sm: 14px;
+  --fs-xs: 12.5px;
 
   color-scheme: light;
 }
@@ -153,7 +153,7 @@ body { min-height: 100svh; }
   flex-wrap: wrap;
 }
 .brand-name {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
@@ -303,7 +303,7 @@ body { min-height: 100svh; }
 .ot-value {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--ink);
 }
