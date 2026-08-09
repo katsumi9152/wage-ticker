@@ -74,19 +74,19 @@
     }
   }
 
+  /** いま実際に表示している方(選択が無ければ常に 'light'。initTheme と一致させる)。 */
   function currentTheme() {
     var saved = null;
     try { saved = globalThis.localStorage ? globalThis.localStorage.getItem(THEME_KEY) : null; } catch (e) { saved = null; }
-    if (saved === 'light' || saved === 'dark') return saved;
-    var mq = globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)');
-    return mq && mq.matches ? 'dark' : 'light';
+    return saved === 'dark' ? 'dark' : 'light';
   }
 
   function initTheme() {
-    // 指定が無ければ端末の設定に追従する(data-theme を付けない)
+    // 明示的に選んだことが無ければ、端末の設定(ダークモード)に関わらずライトで開く。
+    // 保存はしない(端末側のダーク設定が変わっても、選ぶまでは常にライトから始まる)。
     var saved = null;
     try { saved = globalThis.localStorage ? globalThis.localStorage.getItem(THEME_KEY) : null; } catch (e) { saved = null; }
-    applyTheme(saved);
+    applyTheme(saved || 'light');
     $('themeToggle').addEventListener('click', function () {
       var next = currentTheme() === 'dark' ? 'light' : 'dark';
       try { globalThis.localStorage.setItem(THEME_KEY, next); } catch (e) { /* noop */ }
@@ -405,7 +405,7 @@
   function liveMetaText(live) {
     var start = ctx.active ? hhmm(ctx.active.startMs) : '--:--';
     var txt = '出勤 ' + start + ' / 実働 ' + fmtHours(live.workedMinutes);
-    if (live.deductedMinutes > 0) txt += ' / 休憩 -' + Math.round(live.deductedMinutes) + '分';
+    if (live.deductedMinutes > 0) txt += ' / 休憩 ' + fmtHours(live.deductedMinutes);
     if (live.onBreak) txt += ' / 休憩中';
     return txt;
   }
@@ -853,6 +853,8 @@
       btns[i].classList.toggle('is-on', s.workdays.indexOf(day) >= 0);
     }
 
+    $('setObserveHolidays').checked = s.observeNationalHolidays !== false;
+
     var brk = s.breakWindow || WT.DEFAULT_SETTINGS.breakWindow;
     setSelectValue('setBreakStart', brk.start);
     setSelectValue('setBreakEnd', brk.end);
@@ -892,6 +894,7 @@
     s.breakWindow = { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
     s.fixedOvertimeAllowance = Math.max(0, Number(String($('setFixedAllowance').value).replace(/[^\d.]/g, '')) || 0);
     s.fixedOvertimeHours = Number($('setFixedHours').value) || 0;
+    s.observeNationalHolidays = $('setObserveHolidays').checked;
     s.showToday = $('setShowToday').checked;
     s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;
@@ -998,7 +1001,9 @@
       else if (entry && entry.type === 'company_holiday') mark = entry.holidayKind === 'legal' ? 'legal' : 'scheduled';
       else if (key < todayKey && A.isScheduledWorkDay(date, store.settings, store.calendar)) mark = 'auto';
       else if (!A.isScheduledWorkDay(date, store.settings, store.calendar)) {
-        mark = A.judgeLegalHoliday(date, store.settings, store.calendar) ? 'legal' : 'scheduled';
+        if (A.judgeLegalHoliday(date, store.settings, store.calendar)) mark = 'legal';
+        else if (store.settings.observeNationalHolidays !== false && WT.holidays.isNationalHoliday(date)) mark = 'holiday';
+        else mark = 'scheduled';
       }
 
       html += '<button class="' + cls + '" data-date="' + key + '"><span>' + d +
@@ -1120,9 +1125,15 @@
 
     var isPast = key < T.dateKey(new Date());
     var scheduled = A.isScheduledWorkDay(date, store.settings, store.calendar);
-    $('dayNote').textContent = !entry && isPast && scheduled
-      ? '未入力のため、所定内 ' + store.settings.dailyScheduledHours + '時間・残業なしとして自動加算しています。追記は任意です。'
-      : '';
+    var holiday = store.settings.observeNationalHolidays !== false ? WT.holidays.isNationalHoliday(date) : null;
+    if (holiday) {
+      $('dayNote').textContent = 'この日は「' + holiday.name + '」です。' +
+        (entry ? '' : '所定休日として総枠から除外しています。出勤した場合はここから記録できます。');
+    } else if (!entry && isPast && scheduled) {
+      $('dayNote').textContent = '未入力のため、所定内 ' + store.settings.dailyScheduledHours + '時間・残業なしとして自動加算しています。追記は任意です。';
+    } else {
+      $('dayNote').textContent = '';
+    }
 
     syncDayRows();
     $('dayDialog').showModal();

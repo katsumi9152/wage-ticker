@@ -17,11 +17,19 @@
     return (calendar && calendar[key]) || null;
   }
 
-  /** その日は所定労働日か(会社休日の指定と、所定労働日の曜日設定から判定) */
+  /**
+   * その日は所定労働日か(会社休日の指定・国民の祝日・所定労働日の曜日設定から判定)。
+   *
+   * 会社休日として明示的に指定されていれば常にそれを優先する。指定が無い日は、
+   * 設定で祝日を除外する扱いにしている場合(既定オン)、国民の祝日も所定労働日
+   * から除外する。祝日でも実際に打刻すれば「所定休日(法定超)出勤」として
+   * 通常どおり記録されるので、この判定はあくまで総枠の計算に効く(SPEC 14)。
+   */
   function isScheduledWorkDay(date, settings, calendar) {
     var key = T.dateKey(date);
     var entry = getEntry(calendar, key);
     if (entry && entry.type === 'company_holiday') return false;
+    if (settings.observeNationalHolidays !== false && WT.holidays.isNationalHoliday(date)) return false;
     var workdays = settings.workdays || [];
     return workdays.indexOf(date.getDay()) >= 0;
   }

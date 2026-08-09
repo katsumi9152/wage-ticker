@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WageTicker">
-<link rel="stylesheet" href="styles.css?v=20260810a">
+<link rel="stylesheet" href="styles.css?v=20260811a">
 </head>
 <body>
 
@@ -231,6 +231,11 @@
       <span class="hint">出勤する曜日です。総枠(所定労働時間)の計算と、自動モードの勤務予定日に使います。</span>
     </div>
 
+    <div class="field">
+      <label class="check"><input id="setObserveHolidays" type="checkbox"> 祝日を所定労働日から自動的に除外する</label>
+      <span class="hint">オンにすると、上で選んだ曜日に当たっていても国民の祝日は所定休日として扱い、総枠の計算から外します(振替休日も含みます)。実際にその日出勤すれば、通常どおり記録できます。祝日も平常営業の場合はオフにしてください。</span>
+    </div>
+
     <label class="field">
       <span class="field-label">法定休日の曜日</span>
       <select id="setLegalWeekday"></select>
@@ -309,6 +314,7 @@
       <span><i class="sw sw--work"></i>出勤</span>
       <span><i class="sw sw--leave"></i>有給</span>
       <span><i class="sw sw--legal"></i>法定休日</span>
+      <span><i class="sw sw--holiday"></i>祝日</span>
       <span><i class="sw sw--scheduled"></i>所定休日</span>
       <span><i class="sw sw--auto"></i>未入力(自動加算)</span>
     </div>
@@ -367,12 +373,13 @@
   </div>
 </dialog>
 
-<script src="src/constants.js?v=20260810a"></script>
-<script src="src/time.js?v=20260810a"></script>
-<script src="src/period.js?v=20260810a"></script>
-<script src="src/wage.js?v=20260810a"></script>
-<script src="src/aggregate.js?v=20260810a"></script>
-<script src="src/storage.js?v=20260810a"></script>
-<script src="src/app.js?v=20260810a"></script>
+<script src="src/constants.js?v=20260811a"></script>
+<script src="src/time.js?v=20260811a"></script>
+<script src="src/period.js?v=20260811a"></script>
+<script src="src/holidays.js?v=20260811a"></script>
+<script src="src/wage.js?v=20260811a"></script>
+<script src="src/aggregate.js?v=20260811a"></script>
+<script src="src/storage.js?v=20260811a"></script>
+<script src="src/app.js?v=20260811a"></script>
 </body>
 </html>

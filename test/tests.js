@@ -40,6 +40,10 @@
       breakWindow: { start: '12:00', end: '13:00' },
       autoMode: false,
       schedule: { start: '09:00', end: '17:30' },
+      // 既存のテストは祝日を考慮せずに書かれているため、ここでは既定オフにする。
+      // 祝日との組み合わせは「祝日」のセクションで observeNationalHolidays: true を
+      // 明示したテストで別途検証する。
+      observeNationalHolidays: false,
     };
     for (var k in (over || {})) s[k] = over[k];
     return s;
@@ -305,6 +309,62 @@
     eq(frames.scheduledWorkDays, 22, '2026年9月の平日は22日');
     near(frames.scheduledFrameMinutes, 22 * 7.5 * 60);
     near(frames.legalFrameMinutes, (40 * 30 * 60) / 7);
+  });
+
+  // -------------------------------------------------------------- 祝日
+
+  test('祝日: 既定(オン)では総枠の所定労働日数から祝日が除かれる', function () {
+    // 2026年9月: 敬老の日(9/21・月)、国民の休日(9/22・火)、秋分の日(9/23・水)の
+    // 3つの平日が祝日にあたるため、22日(平日数)から3日引いた19日になる
+    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
+    var frames = A.computeFrames(period, baseSettings({ observeNationalHolidays: true }), {});
+    eq(frames.scheduledWorkDays, 19, '祝日3日ぶんが所定労働日数から除かれていない');
+    near(frames.scheduledFrameMinutes, 19 * 7.5 * 60);
+  });
+
+  test('祝日: オフにすると従来どおり曜日だけで判定する', function () {
+    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
+    var frames = A.computeFrames(period, baseSettings({ observeNationalHolidays: false }), {});
+    eq(frames.scheduledWorkDays, 22, 'オフなら祝日を考慮しない');
+  });
+
+  test('祝日: 未入力日として自動加算されない', function () {
+    var settings = baseSettings({ observeNationalHolidays: true });
+    var period = P.resolvePeriod(day(2026, 9, 25), 'last');
+    var agg = A.aggregatePeriod({
+      period: period, settings: settings, calendar: {}, activeSession: null, now: day(2026, 9, 25),
+    });
+    eq(agg.unfilledDates.indexOf('2026-09-21'), -1, '敬老の日(月)が未入力日として加算されている');
+    eq(agg.unfilledDates.indexOf('2026-09-22'), -1, '国民の休日(火)が未入力日として加算されている');
+    eq(agg.unfilledDates.indexOf('2026-09-23'), -1, '秋分の日(水)が未入力日として加算されている');
+    // 9/24(木)は祝日ではない平日なので、通常どおり未入力日になる
+    ok(agg.unfilledDates.indexOf('2026-09-24') >= 0, '祝日でない平日まで除外されてしまっている');
+  });
+
+  test('祝日: 実際に出勤すれば所定休日(法定超)出勤として通常どおり記録される', function () {
+    var settings = baseSettings({ observeNationalHolidays: true });
+    var calendar = {
+      '2026-09-21': { type: 'work', clockIn: at(2026, 9, 21, 9, 0), clockOut: at(2026, 9, 21, 17, 30), isLegalHoliday: false },
+    };
+    var period = P.resolvePeriod(day(2026, 9, 25), 'last');
+    var agg = A.aggregatePeriod({
+      period: period, settings: settings, calendar: calendar, activeSession: null, now: day(2026, 9, 25),
+    });
+    var rec = null;
+    for (var i = 0; i < agg.days.length; i++) { if (agg.days[i].date === '2026-09-21') rec = agg.days[i]; }
+    ok(!!rec, '祝日に出勤した記録が無い');
+    eq(rec.kind, 'work');
+    ok(rec.breakdown.legalHoliday.minutes === 0, '祝日出勤は法定休日(35%増)の対象ではない');
+    // 祝日は所定労働日数に数えないため、総枠計算に混ざらず通常の①②③の枠組みで計算される
+    ok(rec.breakdown.amount > 0);
+  });
+
+  test('祝日: 会社休日の明示指定はいつでも祝日判定より優先する', function () {
+    var settings = baseSettings({ observeNationalHolidays: true });
+    // 元日(1/1)を「所定休日(法定超)」ではなく「法定休日」として明示指定した場合
+    var calendar = { '2026-01-01': { type: 'company_holiday', holidayKind: 'legal' } };
+    ok(!A.isScheduledWorkDay(day(2026, 1, 1), settings, calendar), '会社休日の指定後も所定労働日から除外されているはず');
+    eq(A.judgeLegalHoliday(day(2026, 1, 1), settings, calendar), true, '明示指定が優先されるはず');
   });
 
   test('6.2 過ぎた所定労働日の未入力は所定内で自動加算する', function () {

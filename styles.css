@@ -574,11 +574,20 @@ body { min-height: 100svh; }
 
 /* ------------------------------------------------------------- sheets */
 
+/*
+ * 下からせり上がるシート。header + body を flex column にして、body だけが
+ * 内部スクロールする(header の実際の高さに関わらず、body の高さは
+ * 「ダイアログの上限 − header の実測分」に自動で合う)。
+ * これを固定px値で計算していた頃、ナローなダイアログ(日編集など)だけ
+ * 下端が見切れる不具合があったため flex に直した。
+ */
 dialog.sheet {
   width: min(540px, 100%);
   max-height: 92svh;
   margin: auto auto 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 22px 22px 0 0;
   background: var(--card);
@@ -594,17 +603,16 @@ dialog.sheet--narrow { max-height: 88svh; }
   justify-content: space-between;
   padding: 15px 16px;
   border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
   background: var(--card);
-  z-index: 2;
+  flex: none;
 }
 .sheet-head h2 { margin: 0; font-size: var(--fs-lg); font-weight: 800; }
 
 .sheet-body {
   padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
   overflow-y: auto;
-  max-height: calc(92svh - 62px);
+  flex: 1 1 auto;
+  min-height: 0; /* flex 子要素を正しく縮めてスクロールさせるために必要 */
   background: var(--ground-2);
 }
 
@@ -833,6 +841,7 @@ dialog.confirm::backdrop { background: rgba(6, 11, 20, 0.5); }
 .cal-cell .mk.work { background: var(--cyan); }
 .cal-cell .mk.leave { background: var(--green); }
 .cal-cell .mk.legal { background: var(--pink); }
+.cal-cell .mk.holiday { background: var(--violet); }
 .cal-cell .mk.scheduled { background: var(--faint); }
 .cal-cell .mk.auto { background: var(--amber); }
 
@@ -849,6 +858,7 @@ dialog.confirm::backdrop { background: rgba(6, 11, 20, 0.5); }
 .sw--work { background: var(--cyan); }
 .sw--leave { background: var(--green); }
 .sw--legal { background: var(--pink); }
+.sw--holiday { background: var(--violet); }
 .sw--scheduled { background: var(--faint); }
 .sw--auto { background: var(--amber); }
 

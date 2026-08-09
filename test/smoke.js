@@ -46,14 +46,15 @@
     eq(MODALS[0], 'settingsDialog');
   });
 
-  test('テーマ: 既定は端末の設定に追従し、ボタンで切り替わる', function () {
+  test('テーマ: 選ぶまでは常にライトで始まり、ボタンで切り替わる', function () {
     var root = document.documentElement;
-    eq(root.getAttribute('data-theme'), null, '既定で色を固定してはいけない');
+    eq(root.getAttribute('data-theme'), 'light', '選ぶまでは端末の設定に関わらずライトのはず');
     el('themeToggle').fire('click');
     eq(root.getAttribute('data-theme'), 'dark', '1回目でダークになる');
+    eq(localStorage.getItem('wageTheme'), 'dark', '選んだテーマが保存される');
     el('themeToggle').fire('click');
     eq(root.getAttribute('data-theme'), 'light', '2回目でライトに戻る');
-    eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
+    eq(localStorage.getItem('wageTheme'), 'light');
   });
 
   test('先月との比較は、通常と残業を色分けした横棒で出す', function () {
@@ -345,6 +346,72 @@
     var cells = el('calGrid').innerHTML.match(/cal-cell/g) || [];
     ok(cells.length >= 28, 'カレンダーのセルが足りない: ' + cells.length);
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
+  });
+
+  test('カレンダー: 祝日は専用の印になり、タップすると名前が出る', function () {
+    S.calendar = {};
+    S.settings.observeNationalHolidays = true;
+    refresh();
+
+    // 表示できる5ヶ月(先月〜+3ヶ月)の範囲から、法定休日の曜日と重ならない
+    // 祝日を1つ探す(法定休日の曜日と重なると印が「法定休日」優先になるため)
+    var now = new Date();
+    var found = null;
+    for (var offset = -1; offset <= 3 && !found; offset++) {
+      var probe = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      var h = WT.holidays.nationalHolidaysOfYear(probe.getFullYear());
+      for (var i = 0; i < h.list.length; i++) {
+        var d = h.list[i].date;
+        if (d.getFullYear() === probe.getFullYear() && d.getMonth() === probe.getMonth() &&
+            d.getDay() !== Number(S.settings.legalHolidayWeekday)) {
+          found = { date: d, monthOffset: offset, name: h.list[i].name };
+          break;
+        }
+      }
+    }
+    ok(!!found, 'テスト対象の祝日が表示範囲内に見つからない(通常は起こらないはず)');
+
+    // openCalendar は毎回「今月」に戻るので、そこから必要な回数だけ月を送る
+    el('openCalendar').fire('click');
+    var steps = found.monthOffset;
+    while (steps > 0) { el('calNext').fire('click'); steps--; }
+    while (steps < 0) { el('calPrev').fire('click'); steps++; }
+
+    var key = WT.time.dateKey(found.date);
+    var cellHtml = el('calGrid').innerHTML;
+    var start = cellHtml.indexOf('data-date="' + key + '"');
+    ok(start >= 0, '対象の日のセルが描画されていない');
+    var end = cellHtml.indexOf('</button>', start);
+    var thisCell = cellHtml.slice(start, end >= 0 ? end : undefined);
+    ok(thisCell.indexOf('mk holiday') >= 0, '祝日の印(holiday)が付いていない: ' + thisCell);
+
+    // 実際にそのセルをタップした体で、日編集ダイアログを開く
+    el('calGrid').fire('click', {
+      target: {
+        closest: function (sel) {
+          if (sel !== 'button[data-date]') return null;
+          return { getAttribute: function (attr) { return attr === 'data-date' ? key : null; } };
+        },
+      },
+    });
+    ok(el('dayNote').textContent.indexOf(found.name) >= 0,
+      '日編集ダイアログに祝日名が出ていない: ' + el('dayNote').textContent);
+
+    S.settings.observeNationalHolidays = false;
+    refresh();
+  });
+
+  test('設定: 祝日の除外をオフにすると、その日を通常の平日として扱う', function () {
+    S.calendar = {};
+    S.settings.observeNationalHolidays = false;
+    refresh();
+    // 元日(1月1日、翌年)。既定の所定労働日(月〜金)なら、祝日でも出勤日のはず
+    var jan1 = new Date(new Date().getFullYear() + 1, 0, 1);
+    var isWeekday = jan1.getDay() !== 0 && jan1.getDay() !== 6;
+    eq(WT.aggregate.isScheduledWorkDay(jan1, S.settings, S.calendar), isWeekday,
+      'オフのときは祝日を無視して曜日だけで判定されるはず');
+    S.settings.observeNationalHolidays = true;
+    refresh();
   });
 
   test('カレンダー: 先月から3ヶ月先までしか動かせない', function () {

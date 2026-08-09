@@ -97,6 +97,12 @@
     legalHolidayWeekday: 0,
     /** 所定労働日の曜日。法定休日の曜日とその前日を休みとした週休二日制を既定とする。 */
     workdays: [1, 2, 3, 4, 5],
+    /**
+     * 国民の祝日を所定労働日から自動的に除外するか(既定オン)。
+     * 祝日を営業日として扱う業種向けにオフにできる(src/holidays.js)。
+     * オフにしても、その日を個別に「会社休日」に指定する分には従来どおり効く。
+     */
+    observeNationalHolidays: true,
     /** 休憩時間帯。null なら一律 DEFAULT_BREAK_MINUTES を控除(SPEC 5.2) */
     breakWindow: { start: '12:00', end: '13:00' },
     /**
