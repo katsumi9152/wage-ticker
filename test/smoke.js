@@ -125,11 +125,38 @@
     ok(S.state.lastClockOutAt > 0, '前回退勤時刻が記録されていない');
   });
 
+  test('設定: 法定休日の曜日も月曜始まりで並ぶ', function () {
+    var html = el('setLegalWeekday').innerHTML;
+    var order = [];
+    var re = /value="(\d)"/g;
+    var m;
+    while ((m = re.exec(html)) !== null) { order[order.length] = Number(m[1]); }
+    eq(order.join(','), '1,2,3,4,5,6,0', '選択肢の並びが月曜始まりになっていない');
+  });
+
   test('カレンダー: 当月ぶんのセルが描画される', function () {
     el('openCalendar').fire('click');
     var cells = el('calGrid').innerHTML.match(/cal-cell/g) || [];
     ok(cells.length >= 28, 'カレンダーのセルが足りない: ' + cells.length);
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
+  });
+
+  test('カレンダー: 見出しと空きマスが月曜始まりで揃う', function () {
+    var head = el('calHead').innerHTML;
+    var labels = head.match(/>(.)</g) || [];
+    var joined = [];
+    for (var i = 0; i < labels.length; i++) { joined[joined.length] = labels[i].charAt(1); }
+    eq(joined.join(''), '月火水木金土日', '見出しの曜日が月曜始まりでない');
+
+    el('openCalendar').fire('click');
+    var now = new Date();
+    var first = new Date(now.getFullYear(), now.getMonth(), 1);
+    var expectedLeading = (first.getDay() + 6) % 7; // 月曜始まりの空きマス数
+    var grid = el('calGrid').innerHTML;
+    var empties = (grid.match(/is-empty/g) || []).length;
+    var cells = (grid.match(/cal-cell/g) || []).length;
+    eq(empties, expectedLeading, '月初の空きマス数が月曜始まりと合っていない');
+    eq(cells - empties, WT.time.daysInMonth(now.getFullYear(), now.getMonth()), '日数ぶんのマスが無い');
   });
 
   // ------------------------------------------------------ 自動モード

@@ -532,7 +532,10 @@
 
     var wd = $('setLegalWeekday');
     var wopts = '';
-    for (var w = 0; w < 7; w++) wopts += '<option value="' + w + '">' + WT.WEEKDAY_LABELS[w] + '曜日</option>';
+    for (var w = 0; w < WT.WEEKDAY_ORDER.length; w++) {
+      var wday = WT.WEEKDAY_ORDER[w];
+      wopts += '<option value="' + wday + '">' + WT.WEEKDAY_LABELS[wday] + '曜日</option>';
+    }
     wd.innerHTML = wopts;
 
     var picker = $('setWorkdays');
@@ -664,7 +667,9 @@
 
   function initCalendar() {
     var head = '';
-    for (var i = 0; i < 7; i++) head += '<div class="cal-head-cell">' + WT.WEEKDAY_LABELS[i] + '</div>';
+    for (var i = 0; i < WT.WEEKDAY_ORDER.length; i++) {
+      head += '<div class="cal-head-cell">' + WT.WEEKDAY_LABELS[WT.WEEKDAY_ORDER[i]] + '</div>';
+    }
     $('calHead').innerHTML = head;
 
     $('openCalendar').addEventListener('click', function () {
@@ -698,8 +703,10 @@
     var todayKey = T.dateKey(new Date());
     var period = ctx ? ctx.period : P.resolvePeriod(new Date(), store.settings.closingDay);
 
+    // 週の始まりは WEEKDAY_ORDER の先頭(月曜)に合わせて空きマスを置く
+    var leading = (first.getDay() - WT.WEEKDAY_ORDER[0] + 7) % 7;
     var html = '';
-    for (var pad = 0; pad < first.getDay(); pad++) html += '<button class="cal-cell is-empty" disabled></button>';
+    for (var pad = 0; pad < leading; pad++) html += '<button class="cal-cell is-empty" disabled></button>';
 
     for (var d = 1; d <= days; d++) {
       var date = new Date(y, m, d);
