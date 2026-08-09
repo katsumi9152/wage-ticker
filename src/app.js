@@ -531,7 +531,64 @@
 
   // -------------------------------------------------------------- 設定
 
+  /** 選択肢を流し込む。options は [{value, label}] */
+  function fillSelect(id, options) {
+    var html = '';
+    for (var i = 0; i < options.length; i++) {
+      html += '<option value="' + options[i].value + '">' + options[i].label + '</option>';
+    }
+    $(id).innerHTML = html;
+  }
+
+  /** 保存済みの値が選択肢に無ければ、その値を足してから選ぶ(古い設定を失わないため) */
+  function setSelectValue(id, value) {
+    var sel = $(id);
+    var v = String(value);
+    sel.value = v;
+    if (sel.value !== v) {
+      sel.innerHTML += '<option value="' + v + '">' + v + '</option>';
+      sel.value = v;
+    }
+  }
+
+  function hourLabel(hours) {
+    var total = Math.round(hours * 60);
+    var h = Math.floor(total / 60);
+    var m = total % 60;
+    return m === 0 ? h + '時間' : h + '時間' + m + '分';
+  }
+
+  /** 15分刻みの時刻の選択肢(00:00〜23:45) */
+  function timeOptions() {
+    var out = [];
+    for (var m = 0; m < 24 * 60; m += 15) {
+      var s = T.pad2(Math.floor(m / 60)) + ':' + T.pad2(m % 60);
+      out.push({ value: s, label: s });
+    }
+    return out;
+  }
+
   function initSettings() {
+    // 金額(基本給)以外は、入力ではなくプルダウンから選ぶ
+    var hours = [];
+    for (var h = 4; h <= 12.0001; h += 0.25) {
+      hours.push({ value: Math.round(h * 100) / 100, label: hourLabel(h) });
+    }
+    fillSelect('setDailyHours', hours);
+
+    var holidays = [];
+    for (var d0 = 90; d0 <= 145; d0++) holidays.push({ value: d0, label: d0 + '日' });
+    fillSelect('setAnnualHolidays', holidays);
+
+    var intervals = [{ value: 0, label: '目安なし' }];
+    for (var iv = 6; iv <= 16; iv++) intervals.push({ value: iv, label: iv + '時間' });
+    fillSelect('setInterval', intervals);
+
+    fillSelect('setBreakStart', timeOptions());
+    fillSelect('setBreakEnd', timeOptions());
+    fillSelect('setScheduleStart', timeOptions());
+    fillSelect('setScheduleEnd', timeOptions());
+
     var closing = $('setClosingDay');
     var opts = '<option value="last">末日</option>';
     for (var i = 1; i <= 31; i++) opts += '<option value="' + i + '">' + i + '日</option>';
@@ -597,8 +654,8 @@
     $('setSalary').type = 'password';
     $('salaryEye').textContent = '表示';
     $('setSalary').placeholder = String(WT.BASE_SALARY_PLACEHOLDER);
-    $('setDailyHours').value = s.dailyScheduledHours;
-    $('setAnnualHolidays').value = s.annualHolidays;
+    setSelectValue('setDailyHours', s.dailyScheduledHours);
+    setSelectValue('setAnnualHolidays', s.annualHolidays);
     $('setClosingDay').value = String(s.closingDay);
     $('setLegalWeekday').value = String(s.legalHolidayWeekday);
 
@@ -610,17 +667,17 @@
 
     var hasBreak = !!s.breakWindow;
     $('setNoBreakWindow').checked = !hasBreak;
-    $('setBreakStart').value = hasBreak ? s.breakWindow.start : '12:00';
-    $('setBreakEnd').value = hasBreak ? s.breakWindow.end : '13:00';
+    setSelectValue('setBreakStart', hasBreak ? s.breakWindow.start : '12:00');
+    setSelectValue('setBreakEnd', hasBreak ? s.breakWindow.end : '13:00');
     $('setBreakStart').disabled = !hasBreak;
     $('setBreakEnd').disabled = !hasBreak;
 
-    $('setInterval').value = s.intervalGuideHours;
+    setSelectValue('setInterval', s.intervalGuideHours);
     $('setPrivacyBlur').checked = s.privacyBlur !== false;
     $('setAutoMode').checked = !!s.autoMode;
     $('scheduleRow').style.display = s.autoMode ? 'flex' : 'none';
-    $('setScheduleStart').value = (s.schedule && s.schedule.start) || '09:00';
-    $('setScheduleEnd').value = (s.schedule && s.schedule.end) || '17:30';
+    setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
+    setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
 
     dlg.showModal();
   }

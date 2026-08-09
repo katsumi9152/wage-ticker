@@ -96,13 +96,13 @@
     </label>
 
     <label class="field">
-      <span class="field-label">1日の所定労働時間(時間)</span>
-      <input id="setDailyHours" type="number" step="0.25" min="1" max="24" inputmode="decimal">
+      <span class="field-label">1日の所定労働時間</span>
+      <select id="setDailyHours"></select>
     </label>
 
     <label class="field">
-      <span class="field-label">年間所定休日数(日)</span>
-      <input id="setAnnualHolidays" type="number" step="1" min="0" max="365" inputmode="numeric">
+      <span class="field-label">年間所定休日数</span>
+      <select id="setAnnualHolidays"></select>
     </label>
 
     <label class="field">
@@ -125,17 +125,17 @@
     <div class="field">
       <span class="field-label">休憩時間帯</span>
       <div class="field-inline">
-        <input id="setBreakStart" type="time">
+        <select id="setBreakStart"></select>
         <span class="tilde">〜</span>
-        <input id="setBreakEnd" type="time">
+        <select id="setBreakEnd"></select>
       </div>
       <label class="check"><input id="setNoBreakWindow" type="checkbox"> 登録しない(実働から一律60分を控除)</label>
       <span class="hint">休憩は打刻しません。登録した時間帯と重なった分だけ自動で差し引きます。</span>
     </div>
 
     <label class="field">
-      <span class="field-label">勤務間インターバルの目安(時間)</span>
-      <input id="setInterval" type="number" step="1" min="0" max="24" inputmode="numeric">
+      <span class="field-label">勤務間インターバルの目安</span>
+      <select id="setInterval"></select>
     </label>
 
     <div class="field">
@@ -146,9 +146,9 @@
     <div class="field">
       <label class="check"><input id="setAutoMode" type="checkbox"> 自動モード(出勤/退勤ボタンを使わない)</label>
       <div class="field-inline" id="scheduleRow">
-        <input id="setScheduleStart" type="time">
+        <select id="setScheduleStart"></select>
         <span class="tilde">〜</span>
-        <input id="setScheduleEnd" type="time">
+        <select id="setScheduleEnd"></select>
       </div>
       <span class="hint">勤務予定の曜日は「所定労働日の曜日」と共通です。残業する日は、退勤予定時刻を迎える前に「残業開始」を押してください。</span>
     </div>

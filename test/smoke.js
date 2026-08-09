@@ -143,6 +143,26 @@
     ok(S.state.lastClockOutAt > 0, '前回退勤時刻が記録されていない');
   });
 
+  test('設定: 基本給以外はプルダウンから選ぶ', function () {
+    function optionCount(id) { return (el(id).innerHTML.match(/<option/g) || []).length; }
+    ok(optionCount('setDailyHours') > 10, '所定労働時間の選択肢が無い');
+    ok(optionCount('setAnnualHolidays') > 10, '年間休日数の選択肢が無い');
+    ok(optionCount('setInterval') > 5, 'インターバルの選択肢が無い');
+    ok(optionCount('setBreakStart') === 96, '休憩開始が15分刻みで並んでいない');
+    ok(optionCount('setBreakEnd') === 96, '休憩終了が15分刻みで並んでいない');
+    ok(optionCount('setScheduleStart') === 96, '出勤予定時刻が15分刻みで並んでいない');
+    ok(el('setDailyHours').innerHTML.indexOf('7時間30分') >= 0, '「7時間30分」のような表記になっていない');
+    ok(el('setSalary').type === 'password', '基本給は入力欄のまま(マスク付き)であるべき');
+  });
+
+  test('設定: 選択肢に無い保存値も失われない', function () {
+    S.settings.dailyScheduledHours = 7.6;
+    el('openSettings').fire('click');
+    eq(el('setDailyHours').value, '7.6', '選択肢に無い値が選ばれていない');
+    S.settings.dailyScheduledHours = 7.5;
+    refresh();
+  });
+
   test('設定: 法定休日の曜日も月曜始まりで並ぶ', function () {
     var html = el('setLegalWeekday').innerHTML;
     var order = [];
