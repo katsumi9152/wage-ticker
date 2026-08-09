@@ -107,6 +107,12 @@ html, body {
   font-size: 16px;
   line-height: 1.6;
   -webkit-text-size-adjust: 100%;
+  /*
+   * スマホの「引っ張って更新」対策。ダイアログの内側をスクロールして
+   * 端まで来たときに、そのままページ全体の再読み込みへ流れてしまうと、
+   * 保存前の入力がまるごと消える。ページ側で吸収して止める。
+   */
+  overscroll-behavior-y: contain;
 }
 
 body { min-height: 100svh; }
@@ -668,6 +674,7 @@ dialog.sheet[open] { animation: sheet-in 0.22s ease-out; }
 .sheet-body {
   padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1 1 auto;
   min-height: 0; /* flex 子要素を正しく縮めてスクロールさせるために必要 */
   background: var(--ground-2);
