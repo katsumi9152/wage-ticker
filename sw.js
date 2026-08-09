@@ -1,50 +1,25 @@
 /**
- * sw.js — オフラインでも開けるようにするための、ごく単純なキャッシュ。
+ * sw.js — オフライン対応は撤去した。
  *
- * 方針: 通信があるときは常に最新を取りに行き、失敗したとき(電波が無い等)だけ
- * 直近に成功したぶんを出す(ネットワーク優先・オフライン時だけキャッシュ)。
- * これにより、通常時は index.html?v=... のようなキャッシュ更新の仕組みと
- * 衝突せず、圏外でも「最後に開けたときの状態」で開けるようになる。
- *
- * 事前に決め打ちのファイル一覧をキャッシュするのではなく、実際に読み込まれた
- * ものをそのつどキャッシュに積む(あとからファイルが増減しても書き換え不要)。
+ * 以前この Service Worker を登録済みの端末には、これが「最後の1回」として
+ * 届く。届いたら自分自身を解除し、貯めていたキャッシュを全部消してから
+ * 開いているタブを読み込み直す(以後はこのファイルごと二度と読み込まれない)。
  */
-var CACHE_NAME = 'wageticker-v2';
-
 self.addEventListener('install', function () {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function (names) {
-      return Promise.all(
-        names.filter(function (n) { return n !== CACHE_NAME; }).map(function (n) { return caches.delete(n); })
-      );
+    Promise.all([
+      self.registration.unregister(),
+      caches.keys().then(function (names) {
+        return Promise.all(names.map(function (n) { return caches.delete(n); }));
+      }),
+    ]).then(function () {
+      return self.clients.matchAll({ type: 'window' });
+    }).then(function (clients) {
+      clients.forEach(function (client) { client.navigate(client.url); });
     })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', function (event) {
-  if (event.request.method !== 'GET') return;
-  var url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return; // 他サイトへのリクエストには関与しない
-
-  event.respondWith(
-    // cache: 'reload' でブラウザの通常キャッシュを素通りし、必ず本当の通信を試みる。
-    // これが無いと、GitHub Pages 側の Cache-Control(10分)に引っかかって、
-    // 「オンラインなのに古いまま」になることがある。
-    fetch(event.request, { cache: 'reload' })
-      .then(function (response) {
-        var copy = response.clone();
-        caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
-        return response;
-      })
-      .catch(function () {
-        return caches.match(event.request).then(function (cached) {
-          return cached || (event.request.mode === 'navigate' ? caches.match('./index.html') : undefined);
-        });
-      })
   );
 });
