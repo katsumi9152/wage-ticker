@@ -15,6 +15,9 @@
   function fail(msg) { throw new Error(msg); }
   function ok(cond, msg) { if (!cond) { fail(msg || '条件を満たしていません'); } }
   function eq(a, b, msg) { if (a !== b) { fail((msg || '') + ' — 期待値 ' + b + ' / 実際 ' + a); } }
+  function near(a, b, tol, msg) {
+    if (Math.abs(a - b) > tol) { fail((msg || '') + ' — 期待値 ' + b + ' ± ' + tol + ' / 実際 ' + a); }
+  }
 
   var S = WT.storage.Store;
 
@@ -375,6 +378,46 @@
   });
 
   // ------------------------------------------------------------ 保存
+
+  test('ブラウザを閉じても、出勤時刻から再計算される', function () {
+    S.calendar = {};
+    S.settings.autoMode = false;
+    refresh();
+
+    // 3時間前に出勤し、そのうち30分は休憩していた状態を作る
+    var now = Date.now();
+    S.state.status = 'working';
+    S.state.clockInAt = now - 3 * 60 * 60 * 1000;
+    S.state.isLegalHoliday = false;
+    S.state.breaks = [{ start: now - 60 * 60 * 1000, end: now - 30 * 60 * 1000 }];
+    S.saveState();
+
+    // ブラウザを閉じて開き直した = localStorage から読み直す
+    S.settings = null;
+    S.state = null;
+    S.load();
+    eq(S.state.status, 'working', '出勤状態が復元されていない');
+    eq(S.state.breaks.length, 1, '休憩の記録が復元されていない');
+
+    refresh();
+    var live = WT.aggregate.computeLive(
+      WT.aggregate.aggregatePeriod({
+        period: WT.period.resolvePeriod(new Date(), S.settings.closingDay),
+        settings: S.settings, calendar: S.calendar,
+        activeSession: { startMs: S.state.clockInAt, isLegalHoliday: false, breaks: S.state.breaks },
+        now: new Date()
+      }),
+      { startMs: S.state.clockInAt, isLegalHoliday: false, breaks: S.state.breaks },
+      S.settings, now
+    );
+    near(live.workedMinutes, 150, 1.5, '3時間 − 休憩30分 になっていない');
+
+    S.state.status = 'off';
+    S.state.clockInAt = null;
+    S.state.breaks = [];
+    S.saveState();
+    refresh();
+  });
 
   test('SPEC 12: 設定・状態が localStorage に保存されている', function () {
     S.settings.autoMode = false;
