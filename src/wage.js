@@ -32,6 +32,44 @@
     };
   }
 
+  /**
+   * 1日の所定労働時間を、標準の勤務時間と休憩時間帯から導く。
+   *
+   *   所定労働時間 = (退勤 − 出勤) − 勤務時間と重なる休憩
+   *
+   * 休憩時間帯が未登録なら一律 DEFAULT_BREAK_MINUTES を引く。
+   * 退勤が出勤以前なら日をまたぐ勤務として扱う。
+   *
+   * @returns {?number} 時間(小数2桁まで)。時刻が不正なら null
+   */
+  function deriveDailyScheduledHours(scheduleStart, scheduleEnd, breakWindow) {
+    var s = T.parseTimeToMinutes(scheduleStart);
+    var e = T.parseTimeToMinutes(scheduleEnd);
+    if (s === null || e === null) return null;
+    var span = e - s;
+    if (span <= 0) span += 24 * 60;
+
+    var deduct = WT.DEFAULT_BREAK_MINUTES;
+    if (breakWindow) {
+      var bs = T.parseTimeToMinutes(breakWindow.start);
+      var be = T.parseTimeToMinutes(breakWindow.end);
+      if (bs !== null && be !== null) {
+        var len = be - bs;
+        if (len <= 0) len += 24 * 60;
+        // 勤務時間と実際に重なる分だけを引く(勤務時間外の休憩は引かない)
+        deduct = 0;
+        for (var shift = -1440; shift <= 1440; shift += 1440) {
+          var a = Math.max(s, bs + shift);
+          var b = Math.min(s + span, bs + shift + len);
+          if (b > a) deduct += b - a;
+        }
+      }
+    }
+
+    var minutes = Math.max(0, span - deduct);
+    return Math.round((minutes / 60) * 100) / 100;
+  }
+
   // ------------------------------------------------------------ 休憩控除
 
   /**
@@ -337,6 +375,7 @@
 
   WT.wage = {
     deriveRates: deriveRates,
+    deriveDailyScheduledHours: deriveDailyScheduledHours,
     flatBreakDeduction: flatBreakDeduction,
     sessionWork: sessionWork,
     emptyBreakdown: emptyBreakdown,

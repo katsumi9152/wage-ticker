@@ -322,19 +322,6 @@
     return null;
   }
 
-  /** 勤務間インターバルの目安(SPEC 8.2 ②) */
-  function intervalNotice(lastClockOutAt, clockInAt, guideHours) {
-    if (!lastClockOutAt || !clockInAt) return null;
-    var minutes = (clockInAt - lastClockOutAt) / T.MS_PER_MINUTE;
-    if (minutes < 0) return null;
-    var guideMinutes = Number(guideHours || 0) * 60;
-    return {
-      minutes: minutes,
-      guideMinutes: guideMinutes,
-      isShort: guideMinutes > 0 && minutes < guideMinutes,
-    };
-  }
-
   WT.aggregate = {
     getEntry: getEntry,
     isScheduledWorkDay: isScheduledWorkDay,
@@ -348,6 +335,5 @@
     toHistoryRecord: toHistoryRecord,
     agreement36Stats: agreement36Stats,
     breakNotice: breakNotice,
-    intervalNotice: intervalNotice,
   };
 })((globalThis.WT = globalThis.WT || {}));

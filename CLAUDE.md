@@ -29,7 +29,11 @@ pwsh -File test\run.ps1
   `time.js` / `storage.js`)は DOM に依存しない純粋関数に保つ
 - 割増率・しきい値・デフォルト設定は `src/constants.js` に集約する。他の場所に数値を直書きしない
 - 重い区分計算は 1 秒ごと、金額の描画は `requestAnimationFrame`。この分離を壊さない
-- 覗き見防止(SPEC 11)は「常にぼかしから始まる」が肝。表示状態を永続化しない
+- 色は `styles.css` の `:root` トークン経由でのみ使う。コンポーネントに生の色を書かない。
+  テーマは3状態(端末追従 / light / dark)で、既定は `data-theme` を付けない
+- 1日の所定労働時間は入力項目ではなく、勤務時間 − 休憩時間の自動算出
+  (`wage.deriveDailyScheduledHours`)。入力欄を復活させない
+- 金額はぼかさない(覗き見防止は廃止済み。SPEC 11 を復活させない)
 
 ## SPEC から意図的にずらした点
 

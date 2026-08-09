@@ -83,7 +83,11 @@
   WT.DEFAULT_SETTINGS = {
     /** 基本給(月額・円)。個人差が大きいためデフォルトなし。 */
     monthlyBaseSalary: null,
-    /** 1日の所定労働時間(時間) */
+    /**
+     * 1日の所定労働時間(時間)。
+     * 直接入力はせず、標準勤務時間(schedule)から休憩時間帯を引いて自動算出する
+     * (wage.deriveDailyScheduledHours)。既定の 9:00〜17:30 / 休憩1時間 で 7.5 になる。
+     */
     dailyScheduledHours: 7.5,
     /** 年間所定休日数(日) */
     annualHolidays: 120,
@@ -95,14 +99,6 @@
     workdays: [1, 2, 3, 4, 5],
     /** 休憩時間帯。null なら一律 DEFAULT_BREAK_MINUTES を控除(SPEC 5.2) */
     breakWindow: { start: '12:00', end: '13:00' },
-    /** 勤務間インターバルの目安(時間・SPEC 8.2 ②) */
-    intervalGuideHours: 11,
-    /**
-     * 覗き見防止のぼかし(SPEC 11)。
-     * 仕様上は常時オンだが、利用者の希望でオン/オフを選べるようにしている。
-     * 既定はオン(安全側)。オフにすると金額がそのまま表示され、目のアイコンも消える。
-     */
-    privacyBlur: true,
     /** 自動モード(SPEC 5.3) */
     autoMode: false,
     /** 標準勤務スケジュール(自動モード時)。曜日は workdays を共用する。 */
@@ -115,8 +111,9 @@
   WT.WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
   /**
-   * 曜日を並べる順(月曜始まり)。値そのものは Date.getDay() と同じ 0=日 のまま扱い、
-   * 表示の順序だけをここで決める。
+   * 曜日を並べる順(日曜始まり)。値そのものは Date.getDay() と同じ 0=日 のまま扱い、
+   * 表示の順序だけをここで決める。設定の曜日選択・法定休日の曜日・カレンダーの
+   * 見出しと空きマスが、すべてこの並びに従う。
    */
-  WT.WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  WT.WEEKDAY_ORDER = [0, 1, 2, 3, 4, 5, 6];
 })((globalThis.WT = globalThis.WT || {}));

@@ -18,9 +18,6 @@
 
   /** 現在の集計コンテキスト(1秒ごとに作り直す) */
   var ctx = null;
-  /** 覗き見防止の表示状態(SPEC 11: 永続化しない・常にぼかしから始まる) */
-  var reveal = { on: false, timer: null, holding: false, downAt: 0 };
-  var idleTimer = null;
   var lastLogSavedAt = 0;
   var calMonth = null;
   var editingDayKey = null;
@@ -63,69 +60,88 @@
     return T.pad2(d.getHours()) + ':' + T.pad2(d.getMinutes());
   }
 
-  // ------------------------------------------------------ 覗き見防止(11章)
+  // -------------------------------------------------- テーマ(ライト/ダーク)
 
-  /** 覗き見防止のぼかしが有効か(設定でオフにできる。既定はオン) */
-  function privacyEnabled() {
-    return store.settings.privacyBlur !== false;
-  }
+  var THEME_KEY = 'wageTheme';
 
-  function applyReveal() {
-    var on = privacyEnabled();
-    var masked = on && !reveal.on;
-    var nodes = document.querySelectorAll('.amount, .diff, .kv .v.money');
-    for (var i = 0; i < nodes.length; i++) {
-      nodes[i].classList.toggle('is-masked', masked);
+  /** 保存された指定を適用する。未指定なら端末の設定に従う(data-theme を付けない) */
+  function applyTheme(theme) {
+    var root = document.documentElement;
+    if (theme === 'light' || theme === 'dark') {
+      root.setAttribute('data-theme', theme);
+    } else {
+      root.removeAttribute('data-theme');
     }
-    $('eyeBtn').hidden = !on; // オフのときは目のアイコン自体を出さない
-    $('eyeBtn').classList.toggle('is-on', on && reveal.on);
   }
 
-  function setReveal(on, autoHideMs) {
-    reveal.on = on;
-    if (reveal.timer) { clearTimeout(reveal.timer); reveal.timer = null; }
-    if (on && autoHideMs) {
-      reveal.timer = setTimeout(function () { setReveal(false); }, autoHideMs);
+  function currentTheme() {
+    var saved = null;
+    try { saved = globalThis.localStorage ? globalThis.localStorage.getItem(THEME_KEY) : null; } catch (e) { saved = null; }
+    if (saved === 'light' || saved === 'dark') return saved;
+    var mq = globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)');
+    return mq && mq.matches ? 'dark' : 'light';
+  }
+
+  function initTheme() {
+    // 指定が無ければ端末の設定に追従する(data-theme を付けない)
+    var saved = null;
+    try { saved = globalThis.localStorage ? globalThis.localStorage.getItem(THEME_KEY) : null; } catch (e) { saved = null; }
+    applyTheme(saved);
+    $('themeToggle').addEventListener('click', function () {
+      var next = currentTheme() === 'dark' ? 'light' : 'dark';
+      try { globalThis.localStorage.setItem(THEME_KEY, next); } catch (e) { /* noop */ }
+      applyTheme(next);
+    });
+  }
+
+  // ------------------------------------------------------------ ゲージ
+
+  var GAUGE_TICKS = 40;
+
+  /** 半円ゲージの目盛りを1度だけ組み立てる */
+  function buildGauge() {
+    var g = $('gaugeTicks');
+    if (!g) return;
+    var cx = 100, cy = 112, ri = 60, ro = 86;
+    var html = '';
+    for (var i = 0; i <= GAUGE_TICKS; i++) {
+      var ang = ((195 - (i / GAUGE_TICKS) * 210) * Math.PI) / 180;
+      var c = Math.cos(ang), s = Math.sin(ang);
+      html += '<line class="tick" x1="' + (cx + ri * c).toFixed(1) + '" y1="' + (cy - ri * s).toFixed(1) +
+        '" x2="' + (cx + ro * c).toFixed(1) + '" y2="' + (cy - ro * s).toFixed(1) + '"/>';
     }
-    applyReveal();
+    g.innerHTML = html;
   }
 
-  function bumpIdle() {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(function () { setReveal(false); }, 60000);
+  /**
+   * ゲージを更新する。今日の実働が1日の所定労働時間のどこまで来ているかを示し、
+   * 所定を超えた目盛りは残業の色で塗る。
+   */
+  function renderGauge(todayMinutes, scheduledMinutes) {
+    var g = $('gaugeTicks');
+    var ticks = (g && g.childNodes) || [];
+    var max = Math.max(scheduledMinutes * 1.5, 60);
+    var onCount = Math.round(Math.max(0, Math.min(1, todayMinutes / max)) * GAUGE_TICKS);
+    var overFrom = Math.round((scheduledMinutes / max) * GAUGE_TICKS);
+    for (var i = 0; i < ticks.length; i++) {
+      var cls = 'tick';
+      if (i < onCount) cls += i >= overFrom ? ' is-over' : ' is-on';
+      if (ticks[i].setAttribute) ticks[i].setAttribute('class', cls);
+    }
+    $('gaugeMax').textContent = (max / 60).toFixed(0) + 'h';
+    $('gaugeMid').textContent = '所定 ' + T.formatMinutes(scheduledMinutes);
   }
 
-  function initPrivacy() {
-    var eye = $('eyeBtn');
-    // 押している間だけ表示 / 短いタップなら数秒だけ表示(SPEC 11)
-    eye.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      reveal.holding = true;
-      reveal.downAt = Date.now();
-      setReveal(true);
-    });
-    var release = function () {
-      if (!reveal.holding) return;
-      reveal.holding = false;
-      if (Date.now() - reveal.downAt < 300) {
-        setReveal(true, 5000);
-      } else {
-        setReveal(false);
-      }
-    };
-    eye.addEventListener('pointerup', release);
-    eye.addEventListener('pointercancel', release);
-    eye.addEventListener('pointerleave', release);
-
-    document.addEventListener('visibilitychange', function () {
-      if (document.hidden) setReveal(false);
-    });
-    window.addEventListener('blur', function () { setReveal(false); });
-    window.addEventListener('pagehide', function () { setReveal(false); });
-    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
-      window.addEventListener(ev, bumpIdle, { passive: true });
-    });
-    bumpIdle();
+  /** 今月の実働を、所定・法定の2つの総枠と並べて縦バーで示す */
+  function renderMonthBar(workedMinutes, frames) {
+    var max = Math.max(frames.legalFrameMinutes * 1.15, workedMinutes * 1.05, 60);
+    $('monthBarFill').style.height = ((workedMinutes / max) * 100).toFixed(1) + '%';
+    $('monthBarMarks').innerHTML =
+      '<i class="vbar-mark is-scheduled" style="bottom:' + ((frames.scheduledFrameMinutes / max) * 100).toFixed(1) + '%"></i>' +
+      '<i class="vbar-mark is-legal" style="bottom:' + ((frames.legalFrameMinutes / max) * 100).toFixed(1) + '%"></i>';
+    var bar = $('monthBar');
+    bar.classList.toggle('over-scheduled', workedMinutes > frames.scheduledFrameMinutes);
+    bar.classList.toggle('over-legal', workedMinutes > frames.legalFrameMinutes);
   }
 
   // ------------------------------------------------------------ 集計処理
@@ -234,17 +250,20 @@
       : null;
     if (cmp) {
       diffEl.hidden = false;
-      diffEl.textContent = '先月同時点 ' + fmtSignedYen(cmp.amountDiff);
+      diffEl.textContent = fmtSignedYen(cmp.amountDiff);
       diffEl.classList.toggle('is-plus', cmp.amountDiff >= 0);
       diffEl.classList.toggle('is-minus', cmp.amountDiff < 0);
+      $('monthDiffSub').textContent = cmp.elapsedDays + '日目 / ' + fmtSignedMinutes(cmp.minutesDiff);
     } else {
       diffEl.hidden = true;
+      $('monthDiffSub').textContent = '先月の記録がたまると出ます';
     }
 
+    renderGauge(todayTotal.workedMinutes, Number(ctx.settings.dailyScheduledHours || 0) * 60);
+    renderMonthBar(monthTotal.workedMinutes, ctx.agg.frames);
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
-    applyReveal();
   }
 
   function renderStatus(live) {
@@ -283,24 +302,30 @@
       return;
     }
     otBtn.hidden = false;
-    otBtn.textContent = store.state.overtimeFlag ? '残業終了' : '残業開始';
+    setActLabel(otBtn, store.state.overtimeFlag ? '残業終了' : '残業開始');
+  }
+
+  /** ボタンはアイコン + ラベルなので、ラベルの span だけを書き換える */
+  function setActLabel(btn, text) {
+    var span = btn.querySelector && btn.querySelector('span');
+    if (span) span.textContent = text;
+    else btn.textContent = text;
   }
 
   /** 秒単位の描画。ここでは軽い計算しかしない(SPEC 14)。 */
   function renderFrame() {
     if (ctx) {
       var live = currentLive(Date.now());
-      var ticker = document.querySelector('.ticker');
+      var hero = $('heroCard');
       if (live) {
         var parts = fmtYenParts(live.breakdown.amount);
         $('liveInt').textContent = parts.int;
         $('liveDec').textContent = parts.dec;
         $('tickerLabel').textContent = ctx.settings.autoMode ? '今このセッション(自動)' : '今このセッション';
         $('liveMeta').textContent = liveMetaText(live);
-        ticker.classList.add('is-live');
-        setTone(ticker, live);
-        $('rateStrip').hidden = false;
-        $('rateStrip').innerHTML = '<span class="chip">' + rateLabel(live) + '</span>';
+        hero.classList.add('is-live');
+        setTone(hero, live);
+        $('rateStrip').textContent = rateLabel(live);
       } else {
         var last = lastSessionAmount();
         var p2 = fmtYenParts(last.amount);
@@ -308,9 +333,9 @@
         $('liveDec').textContent = p2.dec;
         $('tickerLabel').textContent = last.label;
         $('liveMeta').textContent = last.meta;
-        ticker.classList.remove('is-live');
-        setTone(ticker, null);
-        $('rateStrip').hidden = true;
+        hero.classList.remove('is-live');
+        setTone(hero, null);
+        $('rateStrip').textContent = '';
       }
     }
     requestAnimationFrame(renderFrame);
@@ -345,19 +370,18 @@
   }
 
   var TONE_LABEL = {
-    scheduledInside: '所定内 ×1.00',
-    legalInsideOvertime: '法定内残業 ×1.00',
-    statutoryOvertime: '法定時間外 ×1.25',
-    statutoryOvertimeOver60: '法定時間外(60h超) ×1.50',
-    legalHoliday: '法定休日 ×1.35',
+    scheduledInside: '所定内',
+    legalInsideOvertime: '法定内残業',
+    statutoryOvertime: '法定時間外',
+    statutoryOvertimeOver60: '法定時間外 60h超',
+    legalHoliday: '法定休日',
   };
 
   function rateLabel(live) {
-    var base = TONE_LABEL[live.marginal.kind] || '';
-    if (live.onBreak) return '休憩中(カウント停止)';
-    var label = base;
-    if (T.isNightMs(Date.now())) label += ' + 深夜 ×0.25';
-    return label + '  =  ×' + live.marginal.rate.toFixed(2);
+    if (live.onBreak) return '休憩中 — カウント停止';
+    var label = TONE_LABEL[live.marginal.kind] || '';
+    if (T.isNightMs(Date.now())) label += ' + 深夜';
+    return label + ' ×' + live.marginal.rate.toFixed(2);
   }
 
   function setTone(el, live) {
@@ -399,6 +423,21 @@
     html += kv('基本給とは別の追加分', fmtYen(b.extraAmount), { money: true, zero: b.extraAmount === 0 });
     html += '</div>';
 
+    // --- 賃金の計算式(この金額がどう出ているか)
+    html += '<div class="sec"><h3>賃金の計算式</h3><div class="formula">';
+    html += '<div>1日の所定労働時間 = 勤務時間 − 休憩 = <b>' + hourLabel(s.dailyScheduledHours) + '</b></div>';
+    html += '<div>月平均所定労働時間 = (365 − ' + s.annualHolidays + '日) × ' + s.dailyScheduledHours +
+      '時間 ÷ 12 = <b>' + agg.rates.monthlyAvgScheduledHours.toFixed(1) + '時間</b></div>';
+    html += '<div>基礎時給単価 = 基本給 ÷ ' + agg.rates.monthlyAvgScheduledHours.toFixed(1) +
+      '時間 = <b class="money">' + fmtYen(agg.rates.baseHourlyRate) + '</b> /時</div>';
+    html += '<div>金額 = 基礎時給単価 × 割増率 × 働いた時間</div>';
+    html += '</div>';
+    html += '<p class="note-line">割増率: 所定内 ×1.00 / 法定内残業 ×1.00 / 法定時間外 ×1.25(月60時間超は ×1.50)/ ' +
+      '法定休日 ×1.35 / 深夜(22:00〜翌5:00)は +0.25 を加算</p>';
+    html += '<p class="note-line">所定内は基本給に含まれている分の取り崩しとして ×1.00 で積み上げています。' +
+      '実際に上乗せされる残業代は「基本給とは別の追加分」をご覧ください。</p>';
+    html += '</div>';
+
     // --- 清算期間
     var remain = P.daysUntilClose(ctx.period, ctx.now);
     var closeLabel = ctx.period.end.getMonth() + 1 + '月' + ctx.period.end.getDate() + '日締め';
@@ -407,8 +446,6 @@
     html += kv(closeLabel, remain === 0 ? '本日が締め日(速報値)' : 'あと ' + remain + '日(速報値)');
     html += kv('所定労働日数 / 総枠', agg.frames.scheduledWorkDays + '日 / ' + fmtHours(agg.frames.scheduledFrameMinutes));
     html += kv('法定労働時間の総枠', fmtHours(agg.frames.legalFrameMinutes));
-    html += kv('基礎時給単価', fmtYen(agg.rates.baseHourlyRate) + ' /時', { money: true });
-    html += kv('月平均所定労働時間', agg.rates.monthlyAvgScheduledHours.toFixed(1) + ' 時間');
     if (cmp) {
       html += kv('先月の同時点(' + cmp.elapsedDays + '日経過)',
         fmtYen(cmp.baseAmount) + ' / ' + fmtHours(cmp.baseMinutes), { money: true });
@@ -447,10 +484,6 @@
     var bn = A.breakNotice(todayMinutes, todayDeducted);
     if (bn) {
       notices.push('本日は休憩の控除なしで' + bn.threshold + '時間を超えています(法定は' + bn.requiredMinutes + '分以上)。');
-    }
-    var iv = A.intervalNotice(store.state.lastClockOutAt, ctx.active ? ctx.active.startMs : null, s.intervalGuideHours);
-    if (iv) {
-      notices.push('前回の退勤から ' + T.formatMinutesJa(iv.minutes) + (iv.isShort ? '(目安の' + s.intervalGuideHours + '時間を下回っています)' : '') + '。');
     }
     if (notices.length) {
       html += '<div class="sec"><h3>気づき</h3>';
@@ -568,21 +601,28 @@
     return out;
   }
 
+  /** 画面のプルダウンから、いまの1日の所定労働時間を算出する */
+  function formDailyHours() {
+    var brk = $('setNoBreakWindow').checked
+      ? null
+      : { start: $('setBreakStart').value, end: $('setBreakEnd').value };
+    return W.deriveDailyScheduledHours($('setScheduleStart').value, $('setScheduleEnd').value, brk);
+  }
+
+  /** 「1日の所定労働時間(自動計算)」の表示を更新する */
+  function refreshDailyHours() {
+    var hours = formDailyHours();
+    $('setDailyHours').textContent = hours === null ? '-' : hourLabel(hours);
+    $('dailyHoursNote').textContent = $('setNoBreakWindow').checked
+      ? '勤務時間から休憩1時間(一律)を引いた値です。基礎時給単価と、有給1日分の換算に使います。'
+      : '勤務時間から休憩時間を引いた値です。基礎時給単価と、有給1日分の換算に使います。';
+  }
+
   function initSettings() {
     // 金額(基本給)以外は、入力ではなくプルダウンから選ぶ
-    var hours = [];
-    for (var h = 4; h <= 12.0001; h += 0.25) {
-      hours.push({ value: Math.round(h * 100) / 100, label: hourLabel(h) });
-    }
-    fillSelect('setDailyHours', hours);
-
     var holidays = [];
     for (var d0 = 90; d0 <= 145; d0++) holidays.push({ value: d0, label: d0 + '日' });
     fillSelect('setAnnualHolidays', holidays);
-
-    var intervals = [{ value: 0, label: '目安なし' }];
-    for (var iv = 6; iv <= 16; iv++) intervals.push({ value: iv, label: iv + '時間' });
-    fillSelect('setInterval', intervals);
 
     fillSelect('setBreakStart', timeOptions());
     fillSelect('setBreakEnd', timeOptions());
@@ -619,9 +659,22 @@
       var off = this.checked;
       $('setBreakStart').disabled = off;
       $('setBreakEnd').disabled = off;
+      refreshDailyHours();
     });
-    $('setAutoMode').addEventListener('change', function () {
-      $('scheduleRow').style.display = this.checked ? 'flex' : 'none';
+
+    // 休憩の開始を選んだら、終了はその1時間後を入れておく(あとから変更可)
+    $('setBreakStart').addEventListener('change', function () {
+      var m = T.parseTimeToMinutes(this.value);
+      if (m !== null) {
+        var end = (m + 60) % (24 * 60);
+        setSelectValue('setBreakEnd', T.pad2(Math.floor(end / 60)) + ':' + T.pad2(end % 60));
+      }
+      refreshDailyHours();
+    });
+
+    // 勤務時間・休憩終了を変えたら、所定労働時間の表示を追従させる
+    ['setBreakEnd', 'setScheduleStart', 'setScheduleEnd'].forEach(function (id) {
+      $(id).addEventListener('change', refreshDailyHours);
     });
     $('salaryEye').addEventListener('click', function () {
       var input = $('setSalary');
@@ -654,7 +707,6 @@
     $('setSalary').type = 'password';
     $('salaryEye').textContent = '表示';
     $('setSalary').placeholder = String(WT.BASE_SALARY_PLACEHOLDER);
-    setSelectValue('setDailyHours', s.dailyScheduledHours);
     setSelectValue('setAnnualHolidays', s.annualHolidays);
     $('setClosingDay').value = String(s.closingDay);
     $('setLegalWeekday').value = String(s.legalHolidayWeekday);
@@ -672,13 +724,11 @@
     $('setBreakStart').disabled = !hasBreak;
     $('setBreakEnd').disabled = !hasBreak;
 
-    setSelectValue('setInterval', s.intervalGuideHours);
-    $('setPrivacyBlur').checked = s.privacyBlur !== false;
     $('setAutoMode').checked = !!s.autoMode;
-    $('scheduleRow').style.display = s.autoMode ? 'flex' : 'none';
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
     setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
 
+    refreshDailyHours();
     dlg.showModal();
   }
 
@@ -686,10 +736,10 @@
 
   function saveSettingsFromForm() {
     var salary = Number(String($('setSalary').value).replace(/[^\d.]/g, ''));
-    var daily = Number($('setDailyHours').value);
+    var daily = formDailyHours(); // 勤務時間 − 休憩 から自動算出
     var holidays = Number($('setAnnualHolidays').value);
     if (!(salary > 0)) { flashHint('基本給を入力してください。'); return; }
-    if (!(daily > 0 && daily <= 24)) { flashHint('1日の所定労働時間を確認してください。'); return; }
+    if (!(daily > 0 && daily <= 24)) { flashHint('出勤時間・退勤時間・休憩時間を確認してください(所定労働時間が0になっています)。'); return; }
     if (!(holidays >= 0 && holidays < 365)) { flashHint('年間所定休日数を確認してください。'); return; }
 
     var workdays = [];
@@ -709,8 +759,6 @@
     s.breakWindow = $('setNoBreakWindow').checked
       ? null
       : { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
-    s.intervalGuideHours = Number($('setInterval').value) || 0;
-    s.privacyBlur = $('setPrivacyBlur').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
 
@@ -911,7 +959,8 @@
 
   function boot() {
     store.load();
-    initPrivacy();
+    initTheme();
+    buildGauge();
     initActions();
     initSettings();
     initCalendar();

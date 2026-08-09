@@ -12,59 +12,99 @@
 <body>
 
 <div class="app">
-  <header class="topbar">
-    <div class="status" id="statusBadge"><span class="dot"></span><span id="statusText">待機中</span></div>
-    <div class="topbar-actions">
-      <button class="icon-btn" id="openCalendar" type="button" aria-label="カレンダー">暦</button>
-      <button class="icon-btn" id="openSettings" type="button" aria-label="設定">設定</button>
+  <!-- ヘッダーカード -->
+  <header class="card topbar">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="30" height="30">
+        <path d="M16 2.6 27.4 9.3v13.4L16 29.4 4.6 22.7V9.3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M17.6 8.8 11 17.4h4.2l-.8 5.8 6.6-8.6h-4.2z" fill="currentColor"/>
+      </svg>
+    </span>
+    <div class="brand">
+      <span class="brand-name">今いくら?</span>
+      <span class="pill" id="statusBadge"><span class="dot"></span><span id="statusText">待機中</span></span>
     </div>
+    <button class="icon-btn" id="themeToggle" type="button" aria-label="ライト / ダークを切り替え">
+      <svg class="ic-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 2.4v2.4M12 19.2v2.4M2.4 12h2.4M19.2 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/>
+        </g>
+      </svg>
+      <svg class="ic-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </header>
 
   <main>
-    <!-- ① 秒単位で増え続ける金額(最優先・最も大きく) -->
-    <section class="panel ticker">
-      <div class="row-label"><span id="tickerLabel">今このセッション</span></div>
-      <div class="amount-row">
-        <div class="amount amount--main is-masked" id="liveAmount">
-          <span class="yen">¥</span><span id="liveInt">0</span><span class="dec" id="liveDec">.00</span>
-        </div>
-        <button class="eye" id="eyeBtn" type="button" aria-label="金額を表示(押している間だけ表示)">
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-            <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
-            <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <!-- ① 秒単位で増え続ける金額(最優先) -->
+    <section class="card hero" id="heroCard">
+      <div class="hero-main">
+        <div class="gauge">
+          <svg viewBox="0 0 200 142" aria-hidden="true">
+            <g id="gaugeTicks"></g>
           </svg>
-        </button>
-      </div>
-      <div class="ticker-sub" id="liveMeta">出勤していません</div>
-      <div class="rate-strip" id="rateStrip" hidden></div>
-    </section>
+          <span class="gauge-center" aria-hidden="true">¥</span>
+          <span class="gauge-scale gauge-scale--min">0</span>
+          <span class="gauge-scale gauge-scale--max" id="gaugeMax">-</span>
+          <span class="gauge-scale gauge-scale--mid" id="gaugeMid">-</span>
+        </div>
 
-    <!-- ②今日 ③今月(常時表示・①より小さく) -->
-    <section class="cards">
-      <div class="panel card">
-        <div class="row-label">今日</div>
-        <div class="amount amount--sub is-masked" id="todayAmount">¥0</div>
-        <div class="card-sub" id="todaySub">0:00</div>
-      </div>
-      <div class="panel card">
-        <div class="row-label">今月</div>
-        <div class="amount amount--sub is-masked" id="monthAmount">¥0</div>
-        <div class="card-sub">
-          <span id="monthSub">0:00</span>
-          <span class="diff" id="monthDiff" hidden></span>
+        <div class="hero-figure">
+          <div class="amount amount--main" id="liveAmount">
+            <span class="yen">¥</span><span id="liveInt">0</span><span class="dec" id="liveDec">.00</span>
+          </div>
+          <div class="hero-labels">
+            <span class="hero-label" id="tickerLabel">今このセッション</span>
+            <span class="hero-state" id="rateStrip"></span>
+          </div>
+          <div class="hero-meta" id="liveMeta">出勤していません</div>
         </div>
       </div>
+
+      <!-- 今月の実働と2つの総枠(所定 / 法定) -->
+      <div class="vbar" id="monthBar">
+        <div class="vbar-track">
+          <div class="vbar-fill" id="monthBarFill"></div>
+          <div class="vbar-marks" id="monthBarMarks"></div>
+        </div>
+        <span class="vbar-cap">今月</span>
+      </div>
     </section>
 
-    <!-- ③ 操作(手動: 出勤/退勤 の2つだけ / 自動モード: 残業開始・終了のみ) -->
-    <section class="actions">
-      <button class="btn btn--in" id="clockInBtn" type="button">出勤</button>
-      <button class="btn btn--out" id="clockOutBtn" type="button">退勤</button>
-      <button class="btn btn--ghost" id="overtimeBtn" type="button" hidden>残業開始</button>
+    <!-- ②今日 ③今月 + 先月比 -->
+    <section class="stats">
+      <div class="card stat">
+        <span class="stat-icon stat-icon--cyan" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.2V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <div class="amount amount--sub" id="todayAmount">¥0</div>
+        <div class="stat-label">今日</div>
+        <div class="stat-sub" id="todaySub">0:00</div>
+      </div>
+
+      <div class="card stat">
+        <span class="stat-icon stat-icon--amber" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M13.6 3.2 6.4 13.4h4.6l-.9 7.4 7.5-10.6h-4.7z" fill="currentColor"/></svg>
+        </span>
+        <div class="amount amount--sub" id="monthAmount">¥0</div>
+        <div class="stat-label">今月</div>
+        <div class="stat-sub" id="monthSub">0:00</div>
+      </div>
+
+      <div class="card stat">
+        <span class="stat-icon stat-icon--green" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 16.5 9.5 11l3.5 3.5L20 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.4 7.5H20v4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div class="amount amount--sub diff" id="monthDiff" hidden>±0</div>
+        <div class="stat-label">先月の同時点と比べて</div>
+        <div class="stat-sub" id="monthDiffSub">まだ比べられません</div>
+      </div>
     </section>
 
     <!-- ④ 補助情報(デフォルト折りたたみ) -->
-    <details class="panel details" id="detailsPanel">
+    <details class="card details" id="detailsPanel">
       <summary>内訳と目安</summary>
       <div id="detailsBody" class="details-body"></div>
     </details>
@@ -73,6 +113,31 @@
       表示は体感用の目安です。会社の勤怠記録・給与明細の金額とは一致しません。
     </p>
   </main>
+
+  <!-- 操作(手動: 出勤/退勤の2つだけ / 自動モード: 残業開始・終了のみ) -->
+  <nav class="actionbar card">
+    <button class="act act--in" id="clockInBtn" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M10 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6A1.7 1.7 0 0 0 6.2 19.5H10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14.5 8.2 18.8 12l-4.3 3.8M18 12H9.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>出勤</span>
+    </button>
+    <button class="act act--out" id="clockOutBtn" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M14 4.5h3.8A1.7 1.7 0 0 1 19.5 6.2v11.6A1.7 1.7 0 0 1 17.8 19.5H14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 8.2 5.2 12l4.3 3.8M6 12h8.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>退勤</span>
+    </button>
+    <button class="act act--ot" id="overtimeBtn" type="button" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.4V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>残業開始</span>
+    </button>
+    <span class="act-sep" aria-hidden="true"></span>
+    <button class="act act--icon" id="openCalendar" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.8" y="5.2" width="16.4" height="15" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>カレンダー</span>
+    </button>
+    <button class="act act--icon" id="openSettings" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v2.2M12 18.6v2.2M3.2 12h2.2M18.6 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>設定</span>
+    </button>
+  </nav>
 </div>
 
 <!-- ------------------------------------------------------------ 設定 -->
@@ -95,9 +160,43 @@
       <span class="hint">覗き見防止のため常にマスク表示にしています。</span>
     </label>
 
+    <div class="field">
+      <span class="field-label">出勤時間 / 退勤時間</span>
+      <div class="field-inline">
+        <select id="setScheduleStart"></select>
+        <span class="tilde">〜</span>
+        <select id="setScheduleEnd"></select>
+      </div>
+      <span class="hint">毎日の標準の勤務時間です。自動モードの計測、カレンダーから打刻を追記するときの初期値にも使います。</span>
+    </div>
+
+    <div class="field">
+      <span class="field-label">休憩時間帯</span>
+      <div class="field-inline">
+        <select id="setBreakStart"></select>
+        <span class="tilde">〜</span>
+        <select id="setBreakEnd"></select>
+      </div>
+      <label class="check"><input id="setNoBreakWindow" type="checkbox"> 登録しない(実働から一律60分を控除)</label>
+      <span class="hint">休憩は打刻しません。登録した時間帯と重なった分だけ自動で差し引きます。開始時刻を選ぶと、終了は1時間後が入ります。</span>
+    </div>
+
+    <div class="field derived">
+      <span class="field-label">1日の所定労働時間(自動計算)</span>
+      <output id="setDailyHours" class="derived-value">-</output>
+      <span class="hint" id="dailyHoursNote">勤務時間から休憩時間を引いた値です。基礎時給単価と、有給1日分の換算に使います。</span>
+    </div>
+
+    <div class="field">
+      <span class="field-label">所定労働日の曜日</span>
+      <div class="weekday-picker" id="setWorkdays"></div>
+      <span class="hint">出勤する曜日です。総枠(所定労働時間)の計算と、自動モードの勤務予定日に使います。</span>
+    </div>
+
     <label class="field">
-      <span class="field-label">1日の所定労働時間</span>
-      <select id="setDailyHours"></select>
+      <span class="field-label">法定休日の曜日</span>
+      <select id="setLegalWeekday"></select>
+      <span class="hint">この曜日の出勤だけが35%増(法定休日労働)の対象になります。</span>
     </label>
 
     <label class="field">
@@ -110,47 +209,9 @@
       <select id="setClosingDay"></select>
     </label>
 
-    <label class="field">
-      <span class="field-label">法定休日の曜日</span>
-      <select id="setLegalWeekday"></select>
-      <span class="hint">この曜日の出勤だけが35%増(法定休日労働)の対象になります。</span>
-    </label>
-
-    <div class="field">
-      <span class="field-label">所定労働日の曜日</span>
-      <div class="weekday-picker" id="setWorkdays"></div>
-      <span class="hint">総枠(所定労働時間)の計算と、自動モードの勤務予定日に使います。</span>
-    </div>
-
-    <div class="field">
-      <span class="field-label">休憩時間帯</span>
-      <div class="field-inline">
-        <select id="setBreakStart"></select>
-        <span class="tilde">〜</span>
-        <select id="setBreakEnd"></select>
-      </div>
-      <label class="check"><input id="setNoBreakWindow" type="checkbox"> 登録しない(実働から一律60分を控除)</label>
-      <span class="hint">休憩は打刻しません。登録した時間帯と重なった分だけ自動で差し引きます。</span>
-    </div>
-
-    <label class="field">
-      <span class="field-label">勤務間インターバルの目安</span>
-      <select id="setInterval"></select>
-    </label>
-
-    <div class="field">
-      <label class="check"><input id="setPrivacyBlur" type="checkbox"> 金額をぼかして表示する(覗き見防止)</label>
-      <span class="hint">オンのあいだは、画面を開くたび金額がぼけた状態から始まり、目のアイコンを押している間だけ読めます。オフにすると常にそのまま表示されます。</span>
-    </div>
-
     <div class="field">
       <label class="check"><input id="setAutoMode" type="checkbox"> 自動モード(出勤/退勤ボタンを使わない)</label>
-      <div class="field-inline" id="scheduleRow">
-        <select id="setScheduleStart"></select>
-        <span class="tilde">〜</span>
-        <select id="setScheduleEnd"></select>
-      </div>
-      <span class="hint">勤務予定の曜日は「所定労働日の曜日」と共通です。残業する日は、退勤予定時刻を迎える前に「残業開始」を押してください。</span>
+      <span class="hint">上の出勤・退勤時間に沿って自動で計測します。残業する日は、退勤予定時刻を迎える前に「残業開始」を押してください。</span>
     </div>
 
     <details class="note">

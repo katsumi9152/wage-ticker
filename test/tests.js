@@ -38,7 +38,6 @@
       legalHolidayWeekday: 0,
       workdays: [1, 2, 3, 4, 5],
       breakWindow: { start: '12:00', end: '13:00' },
-      intervalGuideHours: 11,
       autoMode: false,
       schedule: { start: '09:00', end: '17:30' },
     };
@@ -60,6 +59,17 @@
     eq(r.annualWorkDays, 240);
     near(r.monthlyAvgScheduledHours, 160, 1e-9);
     near(r.baseHourlyRate, 1875, 1e-9);
+  });
+
+  test('1日の所定労働時間は 勤務時間 − 休憩 で決まる', function () {
+    var d = W.deriveDailyScheduledHours;
+    near(d('09:00', '17:30', { start: '12:00', end: '13:00' }), 7.5, 1e-9, '既定の組み合わせ');
+    near(d('09:00', '18:00', { start: '12:00', end: '13:00' }), 8, 1e-9);
+    near(d('09:00', '18:00', null), 8, 1e-9, '休憩未登録なら一律60分を引く');
+    near(d('08:30', '17:15', { start: '12:00', end: '12:45' }), 8, 1e-9, '45分休憩');
+    near(d('13:00', '17:00', { start: '12:00', end: '13:00' }), 4, 1e-9, '勤務時間と重ならない休憩は引かない');
+    near(d('22:00', '06:00', { start: '02:00', end: '03:00' }), 7, 1e-9, '日をまたぐ勤務');
+    eq(d('', '17:30', null), null, '時刻が不正なら null');
   });
 
   // ------------------------------------------------- 清算期間(締め日)
@@ -403,14 +413,6 @@
     eq(A.breakNotice(400, 0).threshold, 6);
     eq(A.breakNotice(500, 0).threshold, 8);
     eq(A.breakNotice(500, 60), null, '控除があれば表示しない');
-  });
-
-  test('8.2 勤務間インターバルの目安', function () {
-    var n = A.intervalNotice(at(2026, 9, 9, 23, 0), at(2026, 9, 10, 8, 0), 11);
-    near(n.minutes, 540);
-    ok(n.isShort, '9時間は目安11時間を下回る');
-    ok(!A.intervalNotice(at(2026, 9, 9, 20, 0), at(2026, 9, 10, 9, 0), 11).isShort);
-    eq(A.intervalNotice(null, at(2026, 9, 10, 9, 0), 11), null);
   });
 
   // -------------------------------------------- 7.3/12 ロールオーバー

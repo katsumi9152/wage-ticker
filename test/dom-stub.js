@@ -34,7 +34,7 @@ function stubEl(id) {
   return {
     id: id, hidden: false, disabled: false, open: false, value: '', textContent: '',
     innerHTML: '', checked: false, type: 'text', placeholder: '', style: {},
-    _h: {}, classList: stubClassList(),
+    _h: {}, classList: stubClassList(), childNodes: [],
     addEventListener: function (t, f) { if (!this._h[t]) { this._h[t] = []; } this._h[t][this._h[t].length] = f; },
     fire: function (t, ev) {
       var e = ev || {};
@@ -65,6 +65,12 @@ var DOC_HANDLERS = {};
 var document = {
   readyState: 'complete',
   hidden: false,
+  documentElement: {
+    _attrs: {},
+    setAttribute: function (k, v) { this._attrs[k] = v; },
+    removeAttribute: function (k) { delete this._attrs[k]; },
+    getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this._attrs, k) ? this._attrs[k] : null; }
+  },
   getElementById: el,
   querySelector: function (sel) { return el(sel); },
   querySelectorAll: function (sel) {

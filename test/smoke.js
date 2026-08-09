@@ -43,56 +43,45 @@
     eq(MODALS[0], 'settingsDialog');
   });
 
-  test('SPEC 11: 金額は最初からぼかし状態', function () {
+  test('テーマ: 既定は端末の設定に追従し、ボタンで切り替わる', function () {
+    var root = document.documentElement;
+    eq(root.getAttribute('data-theme'), null, '既定で色を固定してはいけない');
+    el('themeToggle').fire('click');
+    eq(root.getAttribute('data-theme'), 'dark', '1回目でダークになる');
+    el('themeToggle').fire('click');
+    eq(root.getAttribute('data-theme'), 'light', '2回目でライトに戻る');
+    eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
+  });
+
+  test('ゲージと今月バーが描画される', function () {
     frame();
-    ok(el('liveAmount').classList.contains('is-masked'), 'メイン金額がぼかしになっていない');
-    ok(el('monthAmount').classList.contains('is-masked'), '今月がぼかしになっていない');
+    ok((el('gaugeTicks').innerHTML.match(/<line/g) || []).length === 41, 'ゲージの目盛りが作られていない');
+    ok(el('gaugeMax').textContent.indexOf('h') > 0, 'ゲージの最大値が出ていない');
+    ok(el('gaugeMid').textContent.indexOf('所定') === 0, '所定労働時間の目印が出ていない');
+    ok(String(el('monthBarFill').style.height).indexOf('%') > 0, '今月バーが伸びていない');
+    ok(el('monthBarMarks').innerHTML.indexOf('is-scheduled') >= 0, '所定の総枠の目印が無い');
+    ok(el('monthBarMarks').innerHTML.indexOf('is-legal') >= 0, '法定の総枠の目印が無い');
   });
 
-  test('SPEC 11: 目のアイコンを押している間だけ表示、離すと戻る', function () {
-    el('eyeBtn').fire('pointerdown');
-    ok(!el('liveAmount').classList.contains('is-masked'), '押している間は表示されるはず');
-    ok(el('eyeBtn').classList.contains('is-on'));
-    el('eyeBtn').fire('pointerup');
-    // 300ms 未満のタップ扱いになるため、数秒間の表示が続く(タイマーはスタブで発火しない)
-    el('eyeBtn').fire('pointerdown');
-    el('eyeBtn').fire('pointerleave');
-    ok(true);
-  });
-
-  test('SPEC 11: 画面を離れると必ずぼかしに戻る', function () {
-    document.hidden = true;
-    fireDoc('visibilitychange');
-    ok(el('liveAmount').classList.contains('is-masked'), 'バックグラウンド後もぼかしに戻っていない');
-    document.hidden = false;
-  });
-
-  test('設定: ぼかしをオフにすると金額がそのまま表示される', function () {
-    S.settings.privacyBlur = false;
-    refresh();
-    ok(!el('liveAmount').classList.contains('is-masked'), 'オフなのにぼけている');
-    ok(el('eyeBtn').hidden === true, 'オフのときは目のアイコンを出さない');
-
+  test('金額はぼかさずそのまま表示される', function () {
+    frame();
+    ok(!el('liveAmount').classList.contains('is-masked'), 'メイン金額がぼけている');
+    ok(!el('monthAmount').classList.contains('is-masked'), '今月がぼけている');
     document.hidden = true;
     fireDoc('visibilitychange');
     document.hidden = false;
-    ok(!el('liveAmount').classList.contains('is-masked'), 'オフなら画面を離れてもぼかしに戻らない');
-
-    // 既定(オン)に戻す
-    S.settings.privacyBlur = true;
-    refresh();
-    ok(el('liveAmount').classList.contains('is-masked'), 'オンに戻したらぼかしが復活する');
-    ok(el('eyeBtn').hidden === false, 'オンなら目のアイコンが出る');
+    fireDoc('visibilitychange');
+    ok(!el('liveAmount').classList.contains('is-masked'), '画面を戻したらぼけた');
   });
 
-  test('設定: 所定労働日の曜日は月曜始まりで並ぶ', function () {
+  test('設定: 所定労働日の曜日は日曜始まりで並ぶ', function () {
     var html = el('setWorkdays').innerHTML;
     var order = [];
     var re = /data-day="(\d)"/g;
     var m;
     while ((m = re.exec(html)) !== null) { order[order.length] = Number(m[1]); }
-    eq(order.join(','), '1,2,3,4,5,6,0', '曜日の並び順が月曜始まりになっていない');
-    ok(html.indexOf('>月<') < html.indexOf('>日<'), '月より先に日が出ている');
+    eq(order.join(','), '0,1,2,3,4,5,6', '曜日の並び順が日曜始まりになっていない');
+    ok(html.indexOf('>日<') < html.indexOf('>月<'), '日より先に月が出ている');
   });
 
   // ------------------------------------------------------ 手動モード
@@ -145,31 +134,83 @@
 
   test('設定: 基本給以外はプルダウンから選ぶ', function () {
     function optionCount(id) { return (el(id).innerHTML.match(/<option/g) || []).length; }
-    ok(optionCount('setDailyHours') > 10, '所定労働時間の選択肢が無い');
     ok(optionCount('setAnnualHolidays') > 10, '年間休日数の選択肢が無い');
-    ok(optionCount('setInterval') > 5, 'インターバルの選択肢が無い');
     ok(optionCount('setBreakStart') === 96, '休憩開始が15分刻みで並んでいない');
     ok(optionCount('setBreakEnd') === 96, '休憩終了が15分刻みで並んでいない');
-    ok(optionCount('setScheduleStart') === 96, '出勤予定時刻が15分刻みで並んでいない');
-    ok(el('setDailyHours').innerHTML.indexOf('7時間30分') >= 0, '「7時間30分」のような表記になっていない');
+    ok(optionCount('setScheduleStart') === 96, '出勤時間が15分刻みで並んでいない');
+    ok(optionCount('setScheduleEnd') === 96, '退勤時間が15分刻みで並んでいない');
     ok(el('setSalary').type === 'password', '基本給は入力欄のまま(マスク付き)であるべき');
   });
 
-  test('設定: 選択肢に無い保存値も失われない', function () {
-    S.settings.dailyScheduledHours = 7.6;
+  test('設定: 休憩の開始を選ぶと終了は1時間後が入る', function () {
     el('openSettings').fire('click');
-    eq(el('setDailyHours').value, '7.6', '選択肢に無い値が選ばれていない');
+    el('setBreakStart').value = '11:00';
+    el('setBreakStart').fire('change');
+    eq(el('setBreakEnd').value, '12:00', '1時間後になっていない');
+    el('setBreakStart').value = '12:30';
+    el('setBreakStart').fire('change');
+    eq(el('setBreakEnd').value, '13:30');
+    // 日付をまたぐ場合も一周する
+    el('setBreakStart').value = '23:30';
+    el('setBreakStart').fire('change');
+    eq(el('setBreakEnd').value, '00:30');
+  });
+
+  test('設定: 所定労働時間は勤務時間と休憩から自動計算される', function () {
+    el('openSettings').fire('click');
+    el('setScheduleStart').value = '09:00';
+    el('setScheduleEnd').value = '17:30';
+    el('setBreakStart').value = '12:00';
+    el('setBreakStart').fire('change'); // 終了は13:00 に、表示も更新される
+    eq(el('setDailyHours').textContent, '7時間30分', '自動計算の表示が合っていない');
+
+    el('setScheduleEnd').value = '18:00';
+    el('setScheduleEnd').fire('change');
+    eq(el('setDailyHours').textContent, '8時間');
+
+    el('setNoBreakWindow').checked = true;
+    el('setNoBreakWindow').fire('change');
+    eq(el('setDailyHours').textContent, '8時間', '休憩未登録でも一律60分を引く');
+    ok(el('setBreakStart').disabled === true, '休憩を登録しないなら選択を無効にする');
+    el('setNoBreakWindow').checked = false;
+    el('setNoBreakWindow').fire('change');
+  });
+
+  test('設定: 保存すると所定労働時間が計算に反映される', function () {
+    // 曜日ボタンは innerHTML 文字列なので、保存経路を通すために最小限の代役を置く
+    el('setWorkdays').querySelectorAll = function () {
+      return [1, 2, 3, 4, 5].map(function (d) {
+        return {
+          getAttribute: function () { return String(d); },
+          classList: { toggle: function () {}, contains: function () { return true; } }
+        };
+      });
+    };
+    el('openSettings').fire('click');
+    el('setSalary').value = '300000';
+    el('setScheduleStart').value = '09:00';
+    el('setScheduleEnd').value = '18:00';
+    el('setBreakStart').value = '12:00';
+    el('setBreakEnd').value = '13:00';
+    el('setNoBreakWindow').checked = false;
+    el('saveSettingsBtn').fire('click');
+    eq(S.settings.dailyScheduledHours, 8, '保存された所定労働時間が違う');
+    eq(S.settings.schedule.start, '09:00');
+    eq(S.settings.schedule.end, '18:00');
+
+    // 既定に戻す
+    S.settings.schedule = { start: '09:00', end: '17:30' };
     S.settings.dailyScheduledHours = 7.5;
     refresh();
   });
 
-  test('設定: 法定休日の曜日も月曜始まりで並ぶ', function () {
+  test('設定: 法定休日の曜日も日曜始まりで並ぶ', function () {
     var html = el('setLegalWeekday').innerHTML;
     var order = [];
     var re = /value="(\d)"/g;
     var m;
     while ((m = re.exec(html)) !== null) { order[order.length] = Number(m[1]); }
-    eq(order.join(','), '1,2,3,4,5,6,0', '選択肢の並びが月曜始まりになっていない');
+    eq(order.join(','), '0,1,2,3,4,5,6', '選択肢の並びが日曜始まりになっていない');
   });
 
   test('カレンダー: 当月ぶんのセルが描画される', function () {
@@ -179,17 +220,17 @@
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
   });
 
-  test('カレンダー: 見出しと空きマスが月曜始まりで揃う', function () {
+  test('カレンダー: 見出しと空きマスが日曜始まりで揃う', function () {
     var head = el('calHead').innerHTML;
     var labels = head.match(/>(.)</g) || [];
     var joined = [];
     for (var i = 0; i < labels.length; i++) { joined[joined.length] = labels[i].charAt(1); }
-    eq(joined.join(''), '月火水木金土日', '見出しの曜日が月曜始まりでない');
+    eq(joined.join(''), '日月火水木金土', '見出しの曜日が日曜始まりでない');
 
     el('openCalendar').fire('click');
     var now = new Date();
     var first = new Date(now.getFullYear(), now.getMonth(), 1);
-    var expectedLeading = (first.getDay() + 6) % 7; // 月曜始まりの空きマス数
+    var expectedLeading = first.getDay(); // 日曜始まりの空きマス数
     var grid = el('calGrid').innerHTML;
     var empties = (grid.match(/is-empty/g) || []).length;
     var cells = (grid.match(/cal-cell/g) || []).length;
