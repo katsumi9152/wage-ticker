@@ -580,6 +580,15 @@ body { min-height: 100svh; }
   color: var(--faint);
 }
 
+/* 表示中のバージョン。デプロイが反映されているかの確認用(コミットのたびに手で更新) */
+.app-version {
+  margin: 2px 4px 0;
+  font-size: var(--fs-xs);
+  font-family: var(--mono);
+  color: var(--faint);
+  opacity: 0.6;
+}
+
 /* ---------------------------------------------------------- actionbar */
 
 .actionbar {
