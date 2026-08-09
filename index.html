@@ -183,12 +183,12 @@
     <p class="form-msg" id="firstRunNote" hidden></p>
 
     <label class="field">
-      <span class="field-label">基本給(月額・円)</span>
+      <span class="field-label">割増の基礎になる月額(円)</span>
       <span class="field-inline">
         <input id="setSalary" type="password" inputmode="numeric" autocomplete="off" placeholder="300000">
-        <button class="icon-btn" id="salaryEye" type="button" aria-label="基本給の表示を切り替え">表示</button>
+        <button class="icon-btn" id="salaryEye" type="button" aria-label="金額の表示を切り替え">表示</button>
       </span>
-      <span class="hint">覗き見防止のため常にマスク表示にしています。</span>
+      <span class="hint">基本給に、役職手当・資格手当など毎月決まって支払われる手当を足した額です。家族手当・通勤手当・住宅手当(いずれも個人の事情に応じて支給されるもの)、臨時の賃金、賞与は、法律上この基礎に含めません。人前で開いても読めないよう伏せ字にしています。</span>
     </label>
 
     <div class="field">
@@ -272,6 +272,7 @@
     <details class="note">
       <summary>金額の見かたと注意</summary>
       <p>本アプリは額面(グロス)の労働対価のみを可視化します。社会保険料・所得税・住民税などの控除、年末調整、賞与は対象外です。</p>
+      <p>コアタイムなしのフレックスタイム制(清算期間1ヶ月)を前提にしています。フレックスの労使協定がない場合や、清算期間が1ヶ月を超える場合、管理監督者・裁量労働制の場合は、時間外の数え方が変わるため合いません。</p>
       <p>打刻はこのアプリ上での個人の記録であり、会社の勤怠システムとは別物です。表示される金額は体感用の目安で、給与明細と一致しないことがあります。正式な給与計算・労務相談の代替ではありません。</p>
     </details>
 

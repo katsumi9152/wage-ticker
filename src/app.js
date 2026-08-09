@@ -492,6 +492,11 @@
     html += kv(closeLabel, remain === 0 ? '本日が締め日(速報値)' : 'あと ' + remain + '日(速報値)');
     html += kv('所定労働日数 / 総枠', agg.frames.scheduledWorkDays + '日 / ' + fmtHours(agg.frames.scheduledFrameMinutes));
     html += kv('法定労働時間の総枠', fmtHours(agg.frames.legalFrameMinutes));
+    // 所定の総枠が法定の総枠を超える設定は、通常ありえない(設定の取り違えを疑う)
+    if (agg.frames.scheduledFrameMinutes > agg.frames.legalFrameMinutes) {
+      html += '<p class="note-line">所定労働時間の総枠が、法定労働時間の総枠を超えています。' +
+        '出勤・退勤の時間、休憩、所定労働日の曜日の設定をご確認ください。</p>';
+    }
     if (cmp) {
       html += kv('先月の同時点(' + cmp.elapsedDays + '日経過)',
         fmtYen(cmp.baseAmount) + ' / ' + fmtHours(cmp.baseMinutes), { money: true });
