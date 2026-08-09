@@ -476,6 +476,37 @@
     eq(res.history[11].label, '2026-08', '確定した期間が末尾に入る');
   });
 
+  // ------------------------------------------------- 残業メーターの見え方
+
+  test('残業メーター: 目盛りは0〜60時間で固定し、超えたら100%で頭打ち', function () {
+    var m1 = A.overtimeMeter(30 * 60, 0);
+    near(m1.fillPercent, 50, 1e-9, '30時間は60時間目盛りの半分');
+    ok(!m1.over45 && !m1.over60);
+
+    var m2 = A.overtimeMeter(50 * 60, 0);
+    near(m2.fillPercent, (50 / 60) * 100, 1e-9);
+    ok(m2.over45, '45時間を超えたら over45');
+    ok(!m2.over60);
+
+    var m3 = A.overtimeMeter(90 * 60, 0);
+    eq(m3.fillPercent, 100, '60時間を超えても塗りは100%で頭打ち');
+    ok(m3.over45 && m3.over60, '60時間を超えたら over45 と over60 の両方が立つ');
+  });
+
+  test('残業メーター: 固定残業の目印位置は60時間目盛り基準', function () {
+    var withFixed = A.overtimeMeter(10 * 60, 30 * 60);
+    eq(withFixed.fixedPercent, 50, '固定残業30時間は60時間目盛りの半分の位置');
+
+    var noFixed = A.overtimeMeter(10 * 60, 0);
+    eq(noFixed.fixedPercent, null, '固定残業0なら目印を出さない(null)');
+  });
+
+  test('残業メーター: 45時間・60時間の目印位置は固定値', function () {
+    var m = A.overtimeMeter(0, 0);
+    near(m.mark45Percent, 75, 1e-9, '45時間は60時間目盛りの75%の位置');
+    eq(m.mark60Percent, 100);
+  });
+
   // ------------------------------------------------------ 8.2 気づき
 
   test('8.2 休憩未取得の目安', function () {

@@ -265,6 +265,32 @@
     return Math.round(n * 100) / 100;
   }
 
+  // -------------------------------------------------------- 残業メーター
+
+  /**
+   * 残業メーター(メイン画面)の見え方を計算する純粋関数。
+   * 目盛りは常に 0〜60時間(月60時間=割増率が変わるライン)で固定し、
+   * 超えた分は 100% で頭打ちにする。DOM は app.js 側で、この戻り値を
+   * そのまま style.width や classList に反映するだけにする。
+   *
+   * @param {number} otMinutes    今月の法定時間外(分)
+   * @param {number} fixedMinutes 固定残業の時間(分)。0 なら目印を出さない。
+   */
+  function overtimeMeter(otMinutes, fixedMinutes) {
+    var guideMinutes = WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES; // 45時間
+    var capMinutes = WT.OVER60_THRESHOLD_MINUTES; // 60時間(目盛りの上限)
+    var pct = function (v) { return Math.min(100, (v / capMinutes) * 100); };
+    return {
+      otMinutes: otMinutes,
+      fillPercent: pct(otMinutes),
+      mark45Percent: pct(guideMinutes),
+      mark60Percent: pct(capMinutes),
+      fixedPercent: fixedMinutes > 0 ? pct(fixedMinutes) : null,
+      over45: otMinutes > guideMinutes,
+      over60: otMinutes > capMinutes,
+    };
+  }
+
   // ---------------------------------------------------- 休憩・インターバル
 
   /**
@@ -293,6 +319,7 @@
     prefixTotals: prefixTotals,
     comparePrevious: comparePrevious,
     toHistoryRecord: toHistoryRecord,
+    overtimeMeter: overtimeMeter,
     breakNotice: breakNotice,
   };
 })((globalThis.WT = globalThis.WT || {}));

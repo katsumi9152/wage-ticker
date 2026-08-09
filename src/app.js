@@ -246,27 +246,22 @@
    */
   function renderOvertime(monthTotal) {
     var otMinutes = monthTotal.statutoryOvertime.minutes + monthTotal.statutoryOvertimeOver60.minutes;
-    var guide = WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES; // 月45時間
-    var line60 = WT.OVER60_THRESHOLD_MINUTES;          // 月60時間
     var fixedMin = Number(ctx.settings.fixedOvertimeHours || 0) * 60;
+    var m = A.overtimeMeter(otMinutes, fixedMin);
+    var pct = function (v) { return v.toFixed(1) + '%'; };
 
-    // 目盛りは 0〜60時間で固定。超えたぶんは振り切れた状態(赤)で見せる。
-    var max = line60;
-    var pct = function (v) { return ((Math.min(v, max) / max) * 100).toFixed(1) + '%'; };
-
-    $('otNow').textContent = fmtHours(otMinutes) +
-      (otMinutes > line60 ? '(60時間超過)' : '');
-    $('otFill').style.width = pct(otMinutes);
-    $('otMark45').style.left = pct(guide);
-    $('otMark60').style.left = pct(line60);
+    $('otNow').textContent = fmtHours(otMinutes) + (m.over60 ? '(60時間超過)' : '');
+    $('otFill').style.width = pct(m.fillPercent);
+    $('otMark45').style.left = pct(m.mark45Percent);
+    $('otMark60').style.left = pct(m.mark60Percent);
 
     var labels = '<span style="left:0%">0</span>' +
-      '<span style="left:' + pct(guide) + '">45h</span>' +
-      '<span class="is-end" style="left:' + pct(line60) + '">60h</span>';
-    if (fixedMin > 0) {
+      '<span style="left:' + pct(m.mark45Percent) + '">45h</span>' +
+      '<span class="is-end" style="left:' + pct(m.mark60Percent) + '">60h</span>';
+    if (m.fixedPercent !== null) {
       $('otMarkFixed').hidden = false;
-      $('otMarkFixed').style.left = pct(fixedMin);
-      labels = '<span class="is-fixed" style="left:' + pct(fixedMin) + '">固定' +
+      $('otMarkFixed').style.left = pct(m.fixedPercent);
+      labels = '<span class="is-fixed" style="left:' + pct(m.fixedPercent) + '">固定' +
         ctx.settings.fixedOvertimeHours + 'h</span>' + labels;
     } else {
       $('otMarkFixed').hidden = true;
@@ -274,8 +269,8 @@
     $('otMarkLabels').innerHTML = labels;
 
     var meter = $('otMeter');
-    meter.classList.toggle('over-45', otMinutes > guide);
-    meter.classList.toggle('over-60', otMinutes > line60);
+    meter.classList.toggle('over-45', m.over45);
+    meter.classList.toggle('over-60', m.over60);
   }
 
   /**
@@ -387,7 +382,7 @@
         var parts = fmtYenParts(live.breakdown.amount);
         $('liveInt').textContent = parts.int;
         $('liveDec').textContent = parts.dec;
-        $('tickerLabel').textContent = ctx.settings.autoMode ? '今このセッション(自動)' : '今このセッション';
+        $('tickerLabel').textContent = ctx.settings.autoMode ? '今の勤務(自動)' : '今の勤務';
         $('liveMeta').textContent = liveMetaText(live);
         hero.classList.add('is-live');
         setTone(hero, live);
@@ -430,7 +425,7 @@
     }
     return {
       amount: 0,
-      label: '今このセッション',
+      label: '今の勤務',
       meta: store.settings.autoMode ? '勤務予定時間外です' : '出勤していません',
     };
   }
@@ -447,7 +442,7 @@
     if (live.onBreak) return '休憩中 — カウント停止';
     var label = TONE_LABEL[live.marginal.kind] || '';
     if (T.isNightMs(Date.now())) label += ' + 深夜';
-    return label + ' ×' + live.marginal.rate.toFixed(2);
+    return label + ' × ' + live.marginal.rate.toFixed(2);
   }
 
   function setTone(el, live) {
@@ -488,11 +483,11 @@
     var b = monthTotal;
     html += '<div class="sec"><h3>今月の内訳</h3>';
     html += kv('所定内(基本給ぶん)', fmtHours(b.scheduledInside.minutes) + ' / ' + fmtYen(b.scheduledInside.amount), { money: true, zero: b.scheduledInside.minutes === 0 });
-    html += kv('法定内残業 ×1.00', fmtHours(b.legalInsideOvertime.minutes) + ' / ' + fmtYen(b.legalInsideOvertime.amount), { money: true, zero: b.legalInsideOvertime.minutes === 0 });
+    html += kv('法定内残業 × 1.00', fmtHours(b.legalInsideOvertime.minutes) + ' / ' + fmtYen(b.legalInsideOvertime.amount), { money: true, zero: b.legalInsideOvertime.minutes === 0 });
     html += kv('固定残業でカバー', fmtHours(b.fixedOvertime.minutes) + ' / ' + fmtYen(b.fixedOvertime.amount), { money: true, zero: b.fixedOvertime.minutes === 0 });
-    html += kv('法定時間外 ×1.25', fmtHours(b.statutoryOvertime.minutes) + ' / ' + fmtYen(b.statutoryOvertime.amount), { money: true, zero: b.statutoryOvertime.minutes === 0 });
-    html += kv('法定時間外 ×1.50(60h超)', fmtHours(b.statutoryOvertimeOver60.minutes) + ' / ' + fmtYen(b.statutoryOvertimeOver60.amount), { money: true, zero: b.statutoryOvertimeOver60.minutes === 0 });
-    html += kv('法定休日 ×1.35', fmtHours(b.legalHoliday.minutes) + ' / ' + fmtYen(b.legalHoliday.amount), { money: true, zero: b.legalHoliday.minutes === 0 });
+    html += kv('法定時間外 × 1.25', fmtHours(b.statutoryOvertime.minutes) + ' / ' + fmtYen(b.statutoryOvertime.amount), { money: true, zero: b.statutoryOvertime.minutes === 0 });
+    html += kv('法定時間外 × 1.50(60h超)', fmtHours(b.statutoryOvertimeOver60.minutes) + ' / ' + fmtYen(b.statutoryOvertimeOver60.amount), { money: true, zero: b.statutoryOvertimeOver60.minutes === 0 });
+    html += kv('法定休日 × 1.35', fmtHours(b.legalHoliday.minutes) + ' / ' + fmtYen(b.legalHoliday.amount), { money: true, zero: b.legalHoliday.minutes === 0 });
     html += kv('深夜割増 +0.25', fmtHours(b.night.minutes) + ' / ' + fmtYen(b.night.amount), { money: true, zero: b.night.minutes === 0 });
     html += kv('うち未入力の自動加算', fmtHours(b.autoFilledMinutes) + ' / ' + fmtYen(b.autoFilledAmount), { money: true, zero: b.autoFilledMinutes === 0 });
     html += kv('基本給とは別の追加分', fmtYen(b.extraAmount), { money: true, zero: b.extraAmount === 0 });
@@ -507,9 +502,9 @@
       '時間 = <b class="money">' + fmtYen(agg.rates.baseHourlyRate) + '</b> /時</div>';
     html += '<div>金額 = 基礎時給単価 × 割増率 × 働いた時間</div>';
     html += '</div>';
-    html += '<p class="note-line">割増率: 所定内 ×1.00 / 法定内残業 ×1.00 / 法定時間外 ×1.25(月60時間超は ×1.50)/ ' +
-      '法定休日 ×1.35 / 深夜(22:00〜翌5:00)は +0.25 を加算</p>';
-    html += '<p class="note-line">所定内は基本給に含まれている分の取り崩しとして ×1.00 で積み上げています。' +
+    html += '<p class="note-line">割増率: 所定内 × 1.00 / 法定内残業 × 1.00 / 法定時間外 × 1.25(月60時間超は × 1.50)/ ' +
+      '法定休日 × 1.35 / 深夜(22:00〜翌5:00)は +0.25 を加算</p>';
+    html += '<p class="note-line">所定内は基本給に含まれている分の取り崩しとして × 1.00 で積み上げています。' +
       '実際に上乗せされる残業代は「基本給とは別の追加分」をご覧ください。</p>';
     html += '</div>';
 
