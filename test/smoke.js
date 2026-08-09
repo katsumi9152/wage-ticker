@@ -53,14 +53,21 @@
     eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
   });
 
-  test('ゲージと今月バーが描画される', function () {
+  test('時計ゲージ: 文字盤・予定・休憩・針が描かれる', function () {
     frame();
-    ok((el('gaugeTicks').innerHTML.match(/<line/g) || []).length === 41, 'ゲージの目盛りが作られていない');
-    ok(el('gaugeMax').textContent.indexOf('h') > 0, 'ゲージの最大値が出ていない');
-    ok(el('gaugeMid').textContent.indexOf('所定') === 0, '所定労働時間の目印が出ていない');
+    eq((el('clockTicks').innerHTML.match(/<line/g) || []).length, 24, '24時間ぶんの目盛りが無い');
+    ok(el('clockPlanned').getAttribute('d').indexOf('M') === 0, '予定の勤務帯が描かれていない');
+    ok(el('clockBreak').getAttribute('d').indexOf('M') === 0, '休憩帯が描かれていない');
+    ok(el('clockHand').getAttribute('x2') !== null, '現在時刻の針が無い');
+    ok(el('clockValue').textContent.indexOf(':') > 0, '中央に実働時間が出ていない');
+    ok(el('clockCap').textContent.indexOf('予定') === 0, '予定の時刻が添えられていない');
+    ok(el('clockCap').textContent.indexOf('休憩') > 0);
+  });
+
+  test('今月バー: 青が基本給ライン、赤が先月の合計', function () {
+    frame();
     ok(String(el('monthBarFill').style.height).indexOf('%') > 0, '今月バーが伸びていない');
-    ok(el('monthBarMarks').innerHTML.indexOf('is-scheduled') >= 0, '所定の総枠の目印が無い');
-    ok(el('monthBarMarks').innerHTML.indexOf('is-legal') >= 0, '法定の総枠の目印が無い');
+    ok(el('monthBarMarks').innerHTML.indexOf('is-base') >= 0, '基本給ラインが無い');
   });
 
   test('金額はぼかさずそのまま表示される', function () {

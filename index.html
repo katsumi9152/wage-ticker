@@ -35,15 +35,22 @@
     <!-- ① 秒単位で増え続ける金額(最優先) -->
     <section class="card hero" id="heroCard">
       <div class="hero-main">
-        <div class="gauge">
-          <svg viewBox="0 0 200 142" aria-hidden="true">
-            <g id="gaugeTicks"></g>
+        <div class="clock">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle class="clock-track" cx="100" cy="100" r="78" />
+            <path class="clock-planned" id="clockPlanned" d="" />
+            <path class="clock-break" id="clockBreak" d="" />
+            <path class="clock-actual" id="clockActual" d="" />
+            <g id="clockTicks"></g>
+            <line class="clock-hand" id="clockHand" x1="100" y1="100" x2="100" y2="30" />
+            <circle class="clock-hub" cx="100" cy="100" r="3.6" />
           </svg>
-          <span class="gauge-center" aria-hidden="true">¥</span>
-          <span class="gauge-scale gauge-scale--min">0</span>
-          <span class="gauge-scale gauge-scale--max" id="gaugeMax">-</span>
-          <span class="gauge-scale gauge-scale--mid" id="gaugeMid">-</span>
+          <div class="clock-center">
+            <span class="clock-value" id="clockValue">0:00</span>
+            <span class="clock-unit">今日の実働</span>
+          </div>
         </div>
+        <div class="clock-cap" id="clockCap"></div>
 
         <div class="hero-figure">
           <div class="amount amount--main" id="liveAmount">
@@ -57,7 +64,7 @@
         </div>
       </div>
 
-      <!-- 今月の実働と2つの総枠(所定 / 法定) -->
+      <!-- 今月の金額。青=基本給ライン / 赤=先月の合計 -->
       <div class="vbar" id="monthBar">
         <div class="vbar-track">
           <div class="vbar-fill" id="monthBarFill"></div>

@@ -47,8 +47,9 @@ function stubEl(id) {
     querySelector: function () { return null; },
     showModal: function () { MODALS[MODALS.length] = this.id; },
     close: function () {},
-    getAttribute: function () { return null; },
-    setAttribute: function () {},
+    _attrs: {},
+    getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this._attrs, k) ? this._attrs[k] : null; },
+    setAttribute: function (k, v) { this._attrs[k] = v; },
     scrollIntoView: function () {},
     appendChild: function () {},
     focus: function () {}

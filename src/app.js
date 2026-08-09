@@ -94,54 +94,116 @@
     });
   }
 
-  // ------------------------------------------------------------ ゲージ
+  // -------------------------------------------------------- 時計ゲージ
 
-  var GAUGE_TICKS = 40;
+  var CLOCK = { cx: 100, cy: 100, rPlan: 78, rActual: 63 };
 
-  /** 半円ゲージの目盛りを1度だけ組み立てる */
+  /** 0時を上として時計回りに角度を出す(24時間で1周) */
+  function clockAngle(minutesOfDay) {
+    return (minutesOfDay / 1440) * 360;
+  }
+
+  function polar(r, deg) {
+    var rad = ((deg - 90) * Math.PI) / 180;
+    return { x: CLOCK.cx + r * Math.cos(rad), y: CLOCK.cy + r * Math.sin(rad) };
+  }
+
+  /** 円弧のパス。sweep は時計回りの角度。 */
+  function arcPath(r, startDeg, sweepDeg) {
+    if (!(sweepDeg > 0)) return '';
+    if (sweepDeg > 359.9) sweepDeg = 359.9;
+    var s = polar(r, startDeg);
+    var e = polar(r, startDeg + sweepDeg);
+    return 'M' + s.x.toFixed(2) + ' ' + s.y.toFixed(2) +
+      ' A' + r + ' ' + r + ' 0 ' + (sweepDeg > 180 ? 1 : 0) + ' 1 ' + e.x.toFixed(2) + ' ' + e.y.toFixed(2);
+  }
+
+  /** 文字盤(1時間ごとの目盛り)を1度だけ組み立てる */
   function buildGauge() {
-    var g = $('gaugeTicks');
+    var g = $('clockTicks');
     if (!g) return;
-    var cx = 100, cy = 112, ri = 60, ro = 86;
     var html = '';
-    for (var i = 0; i <= GAUGE_TICKS; i++) {
-      var ang = ((195 - (i / GAUGE_TICKS) * 210) * Math.PI) / 180;
-      var c = Math.cos(ang), s = Math.sin(ang);
-      html += '<line class="tick" x1="' + (cx + ri * c).toFixed(1) + '" y1="' + (cy - ri * s).toFixed(1) +
-        '" x2="' + (cx + ro * c).toFixed(1) + '" y2="' + (cy - ro * s).toFixed(1) + '"/>';
+    for (var h = 0; h < 24; h++) {
+      var deg = clockAngle(h * 60);
+      var major = h % 6 === 0;
+      var a = polar(major ? 86 : 89, deg);
+      var b = polar(95, deg);
+      html += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) +
+        '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
     }
     g.innerHTML = html;
   }
 
-  /**
-   * ゲージを更新する。今日の実働が1日の所定労働時間のどこまで来ているかを示し、
-   * 所定を超えた目盛りは残業の色で塗る。
-   */
-  function renderGauge(todayMinutes, scheduledMinutes) {
-    var g = $('gaugeTicks');
-    var ticks = (g && g.childNodes) || [];
-    var max = Math.max(scheduledMinutes * 1.5, 60);
-    var onCount = Math.round(Math.max(0, Math.min(1, todayMinutes / max)) * GAUGE_TICKS);
-    var overFrom = Math.round((scheduledMinutes / max) * GAUGE_TICKS);
-    for (var i = 0; i < ticks.length; i++) {
-      var cls = 'tick';
-      if (i < onCount) cls += i >= overFrom ? ' is-over' : ' is-on';
-      if (ticks[i].setAttribute) ticks[i].setAttribute('class', cls);
-    }
-    $('gaugeMax').textContent = (max / 60).toFixed(0) + 'h';
-    $('gaugeMid').textContent = '所定 ' + T.formatMinutes(scheduledMinutes);
+  function minutesOfDayOf(ms) {
+    var d = new Date(ms);
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
   }
 
-  /** 今月の実働を、所定・法定の2つの総枠と並べて縦バーで示す */
-  function renderMonthBar(workedMinutes, frames) {
-    var max = Math.max(frames.legalFrameMinutes * 1.15, workedMinutes * 1.05, 60);
-    $('monthBarFill').style.height = ((workedMinutes / max) * 100).toFixed(1) + '%';
-    $('monthBarMarks').innerHTML =
-      '<i class="vbar-mark is-scheduled" style="bottom:' + ((frames.scheduledFrameMinutes / max) * 100).toFixed(1) + '%"></i>' +
-      '<i class="vbar-mark is-legal" style="bottom:' + ((frames.legalFrameMinutes / max) * 100).toFixed(1) + '%"></i>';
+  /**
+   * 24時間の文字盤に、予定(出勤〜退勤)・休憩・実績・現在時刻の針を描く。
+   * 実績の弧は「出勤してから今まで」を示し、メーターのように伸びていく。
+   */
+  function renderClock(settings, nowMs, actual, todayWorkedMinutes) {
+    var startMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.start);
+    var endMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.end);
+    var brk = settings.breakWindow || {};
+    var bStart = T.parseTimeToMinutes(brk.start);
+    var bEnd = T.parseTimeToMinutes(brk.end);
+
+    if (startMin !== null && endMin !== null) {
+      var span = (endMin - startMin + 1440) % 1440 || 1440;
+      $('clockPlanned').setAttribute('d', arcPath(CLOCK.rPlan, clockAngle(startMin), clockAngle(span)));
+    } else {
+      $('clockPlanned').setAttribute('d', '');
+    }
+
+    if (bStart !== null && bEnd !== null && bStart !== bEnd) {
+      var bSpan = (bEnd - bStart + 1440) % 1440;
+      $('clockBreak').setAttribute('d', arcPath(CLOCK.rPlan, clockAngle(bStart), clockAngle(bSpan)));
+    } else {
+      $('clockBreak').setAttribute('d', '');
+    }
+
+    if (actual && actual.startMs) {
+      var from = minutesOfDayOf(actual.startMs);
+      var to = minutesOfDayOf(actual.endMs || nowMs);
+      var aSpan = (to - from + 1440) % 1440;
+      $('clockActual').setAttribute('d', arcPath(CLOCK.rActual, clockAngle(from), clockAngle(aSpan)));
+    } else {
+      $('clockActual').setAttribute('d', '');
+    }
+
+    var handDeg = clockAngle(minutesOfDayOf(nowMs));
+    var tip = polar(72, handDeg);
+    var tail = polar(-10, handDeg);
+    var hand = $('clockHand');
+    hand.setAttribute('x1', tail.x.toFixed(1));
+    hand.setAttribute('y1', tail.y.toFixed(1));
+    hand.setAttribute('x2', tip.x.toFixed(1));
+    hand.setAttribute('y2', tip.y.toFixed(1));
+
+    $('clockValue').textContent = T.formatMinutes(todayWorkedMinutes);
+    $('clockCap').textContent = startMin !== null && endMin !== null
+      ? '予定 ' + (settings.schedule.start) + '〜' + (settings.schedule.end) +
+        (bStart !== null ? ' / 休憩 ' + brk.start + '〜' + brk.end : '')
+      : '';
+  }
+
+  /**
+   * 今月の金額を縦バーで示す。
+   * 青 = 基本給のライン、赤 = 先月の合計。どちらを超えたかが一目で分かる。
+   */
+  function renderMonthBar(monthAmount, baseSalary, prevAmount) {
+    var max = Math.max(baseSalary * 1.3, monthAmount * 1.05, prevAmount * 1.15, 1);
+    $('monthBarFill').style.height = ((monthAmount / max) * 100).toFixed(1) + '%';
+    var html = '<i class="vbar-mark is-base" style="bottom:' + ((baseSalary / max) * 100).toFixed(1) + '%"></i>';
+    if (prevAmount > 0) {
+      html += '<i class="vbar-mark is-prev" style="bottom:' + ((prevAmount / max) * 100).toFixed(1) + '%"></i>';
+    }
+    $('monthBarMarks').innerHTML = html;
     var bar = $('monthBar');
-    bar.classList.toggle('over-scheduled', workedMinutes > frames.scheduledFrameMinutes);
-    bar.classList.toggle('over-legal', workedMinutes > frames.legalFrameMinutes);
+    bar.classList.toggle('over-base', monthAmount > baseSalary);
+    bar.classList.toggle('over-prev', prevAmount > 0 && monthAmount > prevAmount);
   }
 
   // ------------------------------------------------------------ 集計処理
@@ -211,6 +273,10 @@
       autoInfo: autoInfo,
       prev: previousPeriodDays(period, settings),
     };
+    // 先月の確定合計(縦バーの赤いライン)
+    ctx.prevTotalAmount = ctx.prev
+      ? A.prefixTotals(ctx.prev.days, ctx.prev.period.start, 400).amount
+      : 0;
 
     if (Date.now() - lastLogSavedAt > 60000) {
       lastLogSavedAt = Date.now();
@@ -259,11 +325,22 @@
       $('monthDiffSub').textContent = '先月の記録がたまると出ます';
     }
 
-    renderGauge(todayTotal.workedMinutes, Number(ctx.settings.dailyScheduledHours || 0) * 60);
-    renderMonthBar(monthTotal.workedMinutes, ctx.agg.frames);
+    renderClock(ctx.settings, Date.now(), todayActualSpan(), todayTotal.workedMinutes);
+    renderMonthBar(monthTotal.amount, Number(ctx.settings.monthlyBaseSalary || 0), ctx.prevTotalAmount || 0);
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
+  }
+
+  /** 時計に描く「今日の実績の弧」。勤務中なら現在まで、終業後は退勤時刻まで。 */
+  function todayActualSpan() {
+    if (ctx.active) return { startMs: ctx.active.startMs, endMs: null };
+    var todayKey = T.dateKey(ctx.now);
+    for (var i = ctx.agg.days.length - 1; i >= 0; i--) {
+      var d = ctx.agg.days[i];
+      if (d.date === todayKey && d.kind === 'work') return { startMs: d.clockIn, endMs: d.clockOut };
+    }
+    return null;
   }
 
   function renderStatus(live) {
