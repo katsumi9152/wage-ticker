@@ -603,9 +603,7 @@
 
   /** 画面のプルダウンから、いまの1日の所定労働時間を算出する */
   function formDailyHours() {
-    var brk = $('setNoBreakWindow').checked
-      ? null
-      : { start: $('setBreakStart').value, end: $('setBreakEnd').value };
+    var brk = { start: $('setBreakStart').value, end: $('setBreakEnd').value };
     return W.deriveDailyScheduledHours($('setScheduleStart').value, $('setScheduleEnd').value, brk);
   }
 
@@ -613,9 +611,6 @@
   function refreshDailyHours() {
     var hours = formDailyHours();
     $('setDailyHours').textContent = hours === null ? '-' : hourLabel(hours);
-    $('dailyHoursNote').textContent = $('setNoBreakWindow').checked
-      ? '勤務時間から休憩1時間(一律)を引いた値です。基礎時給単価と、有給1日分の換算に使います。'
-      : '勤務時間から休憩時間を引いた値です。基礎時給単価と、有給1日分の換算に使います。';
   }
 
   function initSettings() {
@@ -653,13 +648,6 @@
       var btn = e.target.closest('button[data-day]');
       if (!btn) return;
       btn.classList.toggle('is-on');
-    });
-
-    $('setNoBreakWindow').addEventListener('change', function () {
-      var off = this.checked;
-      $('setBreakStart').disabled = off;
-      $('setBreakEnd').disabled = off;
-      refreshDailyHours();
     });
 
     // 休憩の開始を選んだら、終了はその1時間後を入れておく(あとから変更可)
@@ -717,12 +705,9 @@
       btns[i].classList.toggle('is-on', s.workdays.indexOf(day) >= 0);
     }
 
-    var hasBreak = !!s.breakWindow;
-    $('setNoBreakWindow').checked = !hasBreak;
-    setSelectValue('setBreakStart', hasBreak ? s.breakWindow.start : '12:00');
-    setSelectValue('setBreakEnd', hasBreak ? s.breakWindow.end : '13:00');
-    $('setBreakStart').disabled = !hasBreak;
-    $('setBreakEnd').disabled = !hasBreak;
+    var brk = s.breakWindow || WT.DEFAULT_SETTINGS.breakWindow;
+    setSelectValue('setBreakStart', brk.start);
+    setSelectValue('setBreakEnd', brk.end);
 
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
@@ -756,9 +741,7 @@
     s.closingDay = closing === 'last' ? 'last' : Number(closing);
     s.legalHolidayWeekday = Number($('setLegalWeekday').value);
     s.workdays = workdays;
-    s.breakWindow = $('setNoBreakWindow').checked
-      ? null
-      : { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
+    s.breakWindow = { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
 

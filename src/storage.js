@@ -47,6 +47,10 @@
     // 破損データへの保険
     if (!Array.isArray(out.workdays) || !out.workdays.length) out.workdays = WT.DEFAULT_SETTINGS.workdays.slice();
     if (!out.schedule || typeof out.schedule !== 'object') out.schedule = { start: '09:00', end: '17:30' };
+    // 休憩時間帯は必ず登録する仕様。以前の「登録しない」設定は既定値に寄せる。
+    if (!out.breakWindow || typeof out.breakWindow !== 'object') {
+      out.breakWindow = { start: WT.DEFAULT_SETTINGS.breakWindow.start, end: WT.DEFAULT_SETTINGS.breakWindow.end };
+    }
     return out;
   }
 

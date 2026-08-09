@@ -168,12 +168,17 @@
     el('setScheduleEnd').fire('change');
     eq(el('setDailyHours').textContent, '8時間');
 
-    el('setNoBreakWindow').checked = true;
-    el('setNoBreakWindow').fire('change');
-    eq(el('setDailyHours').textContent, '8時間', '休憩未登録でも一律60分を引く');
-    ok(el('setBreakStart').disabled === true, '休憩を登録しないなら選択を無効にする');
-    el('setNoBreakWindow').checked = false;
-    el('setNoBreakWindow').fire('change');
+    el('setBreakStart').value = '12:00';
+    el('setBreakEnd').value = '12:45';
+    el('setBreakEnd').fire('change');
+    eq(el('setDailyHours').textContent, '8時間15分', '45分休憩が反映されない');
+  });
+
+  test('設定: 休憩時間帯は必ず登録される(古い「登録しない」設定も既定に寄せる)', function () {
+    var merged = WT.storage.mergeSettings({ breakWindow: null });
+    ok(!!merged.breakWindow, '休憩時間帯が空のまま');
+    eq(merged.breakWindow.start, '12:00');
+    eq(merged.breakWindow.end, '13:00');
   });
 
   test('設定: 保存すると所定労働時間が計算に反映される', function () {
@@ -192,7 +197,6 @@
     el('setScheduleEnd').value = '18:00';
     el('setBreakStart').value = '12:00';
     el('setBreakEnd').value = '13:00';
-    el('setNoBreakWindow').checked = false;
     el('saveSettingsBtn').fire('click');
     eq(S.settings.dailyScheduledHours, 8, '保存された所定労働時間が違う');
     eq(S.settings.schedule.start, '09:00');

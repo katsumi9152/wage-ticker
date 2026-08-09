@@ -53,9 +53,11 @@
     if (breakWindow) {
       var bs = T.parseTimeToMinutes(breakWindow.start);
       var be = T.parseTimeToMinutes(breakWindow.end);
-      if (bs !== null && be !== null) {
+      if (bs !== null && be !== null && bs === be) {
+        deduct = 0; // 開始と終了が同じなら休憩なし
+      } else if (bs !== null && be !== null) {
         var len = be - bs;
-        if (len <= 0) len += 24 * 60;
+        if (len < 0) len += 24 * 60;
         // 勤務時間と実際に重なる分だけを引く(勤務時間外の休憩は引かない)
         deduct = 0;
         for (var shift = -1440; shift <= 1440; shift += 1440) {
