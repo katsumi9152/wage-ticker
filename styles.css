@@ -640,6 +640,9 @@ input:disabled, select:disabled { opacity: 0.45; }
   color: var(--ink-2);
 }
 .check input { width: 22px; height: 22px; accent-color: var(--cyan); }
+/* 横に並べたいチェック(画面の並びと合わせる) */
+.check-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.check-row .check { margin-top: 0; }
 
 /* 保存できなかった理由 */
 .form-msg {

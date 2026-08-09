@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WageTicker">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260810a">
 </head>
 <body>
 
@@ -241,8 +241,11 @@
 
     <div class="field">
       <span class="field-label">メイン画面に表示するもの</span>
-      <label class="check"><input id="setShowToday" type="checkbox"> 今日</label>
-      <label class="check"><input id="setShowMonth" type="checkbox"> 今月</label>
+      <!-- 画面では今日と今月が横に並ぶので、チェックも横並びにする -->
+      <div class="check-row">
+        <label class="check"><input id="setShowToday" type="checkbox"> 今日</label>
+        <label class="check"><input id="setShowMonth" type="checkbox"> 今月</label>
+      </div>
       <span class="hint">秒単位の金額と、今月の法定時間外は常に表示します。</span>
     </div>
 
@@ -355,12 +358,12 @@
   </div>
 </dialog>
 
-<script src="src/constants.js"></script>
-<script src="src/time.js"></script>
-<script src="src/period.js"></script>
-<script src="src/wage.js"></script>
-<script src="src/aggregate.js"></script>
-<script src="src/storage.js"></script>
-<script src="src/app.js"></script>
+<script src="src/constants.js?v=20260810a"></script>
+<script src="src/time.js?v=20260810a"></script>
+<script src="src/period.js?v=20260810a"></script>
+<script src="src/wage.js?v=20260810a"></script>
+<script src="src/aggregate.js?v=20260810a"></script>
+<script src="src/storage.js?v=20260810a"></script>
+<script src="src/app.js?v=20260810a"></script>
 </body>
 </html>
