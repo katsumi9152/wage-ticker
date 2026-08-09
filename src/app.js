@@ -250,17 +250,19 @@
     var line60 = WT.OVER60_THRESHOLD_MINUTES;          // 月60時間
     var fixedMin = Number(ctx.settings.fixedOvertimeHours || 0) * 60;
 
-    // 目盛りは60時間までを基本に、超えたぶんだけ伸ばす
-    var max = Math.max(line60, otMinutes * 1.05, 1);
-    var pct = function (v) { return ((v / max) * 100).toFixed(1) + '%'; };
+    // 目盛りは 0〜60時間で固定。超えたぶんは振り切れた状態(赤)で見せる。
+    var max = line60;
+    var pct = function (v) { return ((Math.min(v, max) / max) * 100).toFixed(1) + '%'; };
 
-    $('otNow').textContent = fmtHours(otMinutes);
-    $('otFill').style.width = pct(Math.min(otMinutes, max));
+    $('otNow').textContent = fmtHours(otMinutes) +
+      (otMinutes > line60 ? '(60時間超過)' : '');
+    $('otFill').style.width = pct(otMinutes);
     $('otMark45').style.left = pct(guide);
     $('otMark60').style.left = pct(line60);
 
-    var labels = '<span style="left:' + pct(guide) + '">45h</span>' +
-      '<span style="left:' + pct(line60) + '">60h</span>';
+    var labels = '<span style="left:0%">0</span>' +
+      '<span style="left:' + pct(guide) + '">45h</span>' +
+      '<span class="is-end" style="left:' + pct(line60) + '">60h</span>';
     if (fixedMin > 0) {
       $('otMarkFixed').hidden = false;
       $('otMarkFixed').style.left = pct(fixedMin);
@@ -533,7 +535,6 @@
 
     // --- 残業時間の目安(SPEC 8.1)。今月ぶんの時間だけを見せる。
     var otMinutes = b.statutoryOvertime.minutes + b.statutoryOvertimeOver60.minutes;
-    var pct45 = Math.min(100, (otMinutes / WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES) * 100);
     html += '<div class="sec"><h3>残業時間の目安(参考)</h3>';
     html += kv('今月の法定時間外', fmtHours(otMinutes));
     html += kv('月45時間(36協定の原則上限)まで', remainLabel(WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes));
