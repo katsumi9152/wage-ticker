@@ -694,6 +694,15 @@ dialog.confirm::backdrop { background: rgba(6, 11, 20, 0.5); }
   border-color: var(--cyan);
 }
 
+/* カレンダーの日編集: 休憩の行 */
+.brk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.brk-row .icon-btn { width: 46px; height: 46px; font-size: var(--fs-lg); }
+
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg button {
   appearance: none;

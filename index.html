@@ -329,6 +329,11 @@
       </div>
       <label class="check"><input id="dayOvernight" type="checkbox"> 退勤は翌日</label>
       <label class="check"><input id="dayIsLegalHoliday" type="checkbox"> この日は法定休日(35%増)</label>
+
+      <span class="field-label" style="margin-top:16px">休憩(昼休憩以外)</span>
+      <div id="dayBreaks"></div>
+      <button class="btn btn--ghost" id="dayBreakAdd" type="button">休憩を追加</button>
+      <span class="hint">設定した昼休憩は自動で差し引かれるので、ここには入れません。ここに入れるのは、それ以外に取った休憩です。</span>
     </div>
 
     <div class="field" id="dayHolidayRow" hidden>

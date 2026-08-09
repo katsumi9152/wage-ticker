@@ -330,7 +330,8 @@
     brkBtn.hidden = false;
 
     inBtn.disabled = working;              // 出勤したら退勤しか押せない
-    outBtn.disabled = !working;
+    // 確定済みの日は「退勤時刻の更新」ができるので押せるままにする
+    outBtn.disabled = !working && !store.isFinishedToday(Date.now());
     // 昼休憩の最中は、手動の休憩を押せない(二重に休むことになるため)
     brkBtn.disabled = !working || onLunch;
     setActLabel(brkBtn, onManualBreak ? '休憩終了' : '休憩開始');
@@ -622,7 +623,9 @@
     });
 
     $('clockOutBtn').addEventListener('click', function () {
-      askConfirm('退勤しますか?', function () {
+      // すでに確定済みの日なら、退勤時刻を「いま」に更新する
+      var updating = store.state.status !== 'working' && store.isFinishedToday(Date.now());
+      askConfirm(updating ? '退勤時刻を、いまの時刻に更新しますか?' : '退勤しますか?', function () {
         store.clockOut(Date.now());
         afterPunch();
       });
@@ -974,7 +977,51 @@
 
   // ------------------------------------------------------------ 日の編集
 
+  /** 休憩1件ぶんの入力行 */
+  function breakRowHtml(start, end) {
+    return '<div class="brk-row">' +
+      '<input type="time" class="brk-start" value="' + start + '">' +
+      '<span class="tilde">〜</span>' +
+      '<input type="time" class="brk-end" value="' + end + '">' +
+      '<button type="button" class="icon-btn brk-del" aria-label="この休憩を削除">×</button>' +
+      '</div>';
+  }
+
+  function renderDayBreaks(breaks) {
+    var html = '';
+    for (var i = 0; i < (breaks || []).length; i++) {
+      var b = breaks[i];
+      if (!b || !b.start) continue;
+      html += breakRowHtml(hhmm(b.start), b.end ? hhmm(b.end) : hhmm(b.start));
+    }
+    $('dayBreaks').innerHTML = html;
+  }
+
+  /** 入力行から休憩の配列を作る。時刻は勤務区間の中に収まるよう日付を合わせる。 */
+  function collectDayBreaks(dayDate, startMs, endMs) {
+    var out = [];
+    var rows = $('dayBreaks').querySelectorAll ? $('dayBreaks').querySelectorAll('.brk-row') : [];
+    for (var i = 0; i < rows.length; i++) {
+      var s = T.parseTimeToMinutes(rows[i].querySelector('.brk-start').value);
+      var e = T.parseTimeToMinutes(rows[i].querySelector('.brk-end').value);
+      if (s === null || e === null) continue;
+      var bs = T.timeOnDate(dayDate, s);
+      var be = T.timeOnDate(dayDate, e);
+      if (bs < startMs) bs += T.MS_PER_DAY; // 日をまたぐ勤務の後半に入れた休憩
+      if (be <= bs) be += T.MS_PER_DAY;
+      if (bs >= startMs && be <= endMs && be > bs) out.push({ start: bs, end: be });
+    }
+    return out;
+  }
+
   function initDayDialog() {
+    $('dayBreakAdd').addEventListener('click', function () {
+      $('dayBreaks').innerHTML += breakRowHtml($('dayIn').value || '12:00', $('dayOut').value || '13:00');
+    });
+    $('dayBreaks').addEventListener('click', function (e) {
+      var del = e.target.closest('.brk-del');
+      if (del && del.parentNode) del.parentNode.remove();
+    });
     $('dayKind').addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-kind]');
       if (!btn) return;
@@ -1037,6 +1084,7 @@
       $('dayOvernight').checked = false;
       $('dayIsLegalHoliday').checked = A.judgeLegalHoliday(date, store.settings, store.calendar);
     }
+    renderDayBreaks(entry && entry.breaks);
 
     var isPast = key < T.dateKey(new Date());
     var scheduled = A.isScheduledWorkDay(date, store.settings, store.calendar);
@@ -1072,8 +1120,9 @@
       var startMs = T.timeOnDate(date, inMin);
       var endMs = T.timeOnDate(date, outMin);
       if ($('dayOvernight').checked || endMs <= startMs) endMs += T.MS_PER_DAY;
+      var breaks = collectDayBreaks(date, startMs, endMs);
       store.setDay(key, null);
-      store.commitSession(startMs, endMs, $('dayIsLegalHoliday').checked);
+      store.commitSession(startMs, endMs, $('dayIsLegalHoliday').checked, breaks);
     }
 
     $('dayDialog').close();

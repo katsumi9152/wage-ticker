@@ -283,17 +283,31 @@
       return !!(entry && entry.clockIn && entry.clockOut);
     },
 
-    /** 退勤。休憩を開けたままなら、その時点で閉じてから確定する。 */
+    /**
+     * 退勤。休憩を開けたままなら、その時点で閉じてから確定する。
+     *
+     * すでに確定済みの日にもう一度押した場合(自動モードで退勤予定時刻に自動確定された
+     * あとなど)は、新しい記録を作らずに **退勤時刻を押した時刻に更新する**。
+     */
     clockOut: function (nowMs) {
-      if (this.state.status !== 'working' || !this.state.clockInAt) return;
-      this.endBreak(nowMs);
-      this.commitSession(this.state.clockInAt, nowMs, this.state.isLegalHoliday, this.state.breaks);
-      this.state.status = 'off';
-      this.state.clockInAt = null;
-      this.state.lastClockOutAt = nowMs;
-      this.state.overtimeFlag = false;
-      this.state.breaks = [];
-      this.saveState();
+      if (this.state.status === 'working' && this.state.clockInAt) {
+        this.endBreak(nowMs);
+        this.commitSession(this.state.clockInAt, nowMs, this.state.isLegalHoliday, this.state.breaks);
+        this.state.status = 'off';
+        this.state.clockInAt = null;
+        this.state.lastClockOutAt = nowMs;
+        this.state.overtimeFlag = false;
+        this.state.breaks = [];
+        this.saveState();
+        return;
+      }
+
+      var entry = this.calendar[T.dateKey(new Date(nowMs))];
+      if (entry && entry.clockIn && entry.clockOut && nowMs > entry.clockOut) {
+        this.commitSession(entry.clockIn, nowMs, entry.isLegalHoliday, entry.breaks);
+        this.state.lastClockOutAt = nowMs;
+        this.saveState();
+      }
     },
 
     /** いま休憩中か(手動の休憩が開いたままか) */

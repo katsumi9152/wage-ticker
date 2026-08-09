@@ -429,6 +429,51 @@
     eq(el('statusText').textContent, '待機中');
   });
 
+  test('自動モード: 自分で出勤を押せば、その時刻が出勤時刻になる', function () {
+    S.calendar = {};
+    S.state.autoDayKey = null;
+    S.state.overtimeFlag = false;
+    S.settings.autoMode = true;
+    S.settings.schedule = { start: '00:00', end: '23:59' };
+    refresh();
+
+    var before = Date.now();
+    el('clockInBtn').fire('click');
+    confirmYes();
+    frame();
+    ok(S.state.clockInAt >= before, '押した時刻ではなく予定時刻が使われている');
+    eq(el('statusText').textContent, '勤務中');
+
+    el('clockOutBtn').fire('click');
+    confirmYes();
+    frame();
+  });
+
+  test('自動モード: 自動退勤したあとに退勤を押すと、その時刻に更新される', function () {
+    var now = new Date();
+    S.calendar = {};
+    S.state.overtimeFlag = false;
+    S.state.autoDayKey = null;
+    // 退勤予定時刻を過ぎた状態にして、自動確定させる
+    S.settings.schedule = { start: '00:00', end: pad2(now.getHours()) + ':' + pad2(now.getMinutes()) };
+    refresh();
+    eq(punchCount(), 1, '自動確定されていない');
+
+    var todayKey = WT.time.dateKey(now);
+    var autoOut = S.calendar[todayKey].clockOut;
+    var autoIn = S.calendar[todayKey].clockIn;
+
+    ok(el('clockOutBtn').disabled === false, '確定後も退勤を押せるようにする');
+    el('clockOutBtn').fire('click');
+    eq(el('confirmText').textContent, '退勤時刻を、いまの時刻に更新しますか?');
+    confirmYes();
+    frame();
+
+    eq(punchCount(), 1, '記録が増えてはいけない');
+    eq(S.calendar[todayKey].clockIn, autoIn, '出勤時刻は変えない');
+    ok(S.calendar[todayKey].clockOut > autoOut, '退勤時刻が更新されていない');
+  });
+
   test('SPEC 5.3: 会社休日に指定した日は自動モードでも動かない', function () {
     S.calendar = {};
     S.setDay(WT.time.dateKey(new Date()), { type: 'company_holiday', holidayKind: 'scheduled' });
