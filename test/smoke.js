@@ -190,7 +190,8 @@
     el('detailsPanel').fire('toggle');
     var html = el('detailsBody').innerHTML;
     var needed = ['所定内', '法定内残業', '法定時間外', '深夜割増', '法定休日',
-      '未入力', '基礎時給単価', '36協定', '清算期間'];
+      '未入力', '基礎時給単価', '残業時間の目安', '清算期間'];
+    ok(html.indexOf('回') < 0 || html.indexOf('月45時間超の回数') < 0, '年間の回数は出さない');
     for (var i = 0; i < needed.length; i++) {
       ok(html.indexOf(needed[i]) >= 0, '内訳に「' + needed[i] + '」が出ていない');
     }

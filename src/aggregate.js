@@ -263,50 +263,6 @@
     return Math.round(n * 100) / 100;
   }
 
-  /**
-   * 36協定の目安(SPEC 8.1)。金額計算には一切影響しない参考情報。
-   * 45時間/360時間の判定は法定時間外労働で行い、100時間/複数月平均80時間の
-   * 判定には法定休日労働も加える(労基法の考え方に合わせる)。
-   */
-  function agreement36Stats(history, current) {
-    var records = (history || []).slice();
-    var cur = {
-      label: current.label,
-      statutoryOvertimeHours: current.statutoryOvertimeHours,
-      legalHolidayHours: current.legalHolidayHours,
-    };
-    var series = records.concat([cur]).slice(-WT.OVERTIME_HISTORY_MAX);
-
-    var annualOvertimeHours = 0;
-    var over45Count = 0;
-    for (var i = 0; i < series.length; i++) {
-      var ot = Number(series[i].statutoryOvertimeHours || 0);
-      annualOvertimeHours += ot;
-      if (ot > 45) over45Count++;
-    }
-
-    // 直近2〜6ヶ月平均(時間外+休日労働)
-    var averages = [];
-    for (var m = 2; m <= 6; m++) {
-      if (series.length < m) break;
-      var slice = series.slice(-m);
-      var sum = 0;
-      for (var j = 0; j < slice.length; j++) {
-        sum += Number(slice[j].statutoryOvertimeHours || 0) + Number(slice[j].legalHolidayHours || 0);
-      }
-      averages.push({ months: m, averageHours: round2(sum / m) });
-    }
-
-    return {
-      monthsCounted: series.length,
-      annualOvertimeHours: round2(annualOvertimeHours),
-      over45Count: over45Count,
-      averages: averages,
-      currentOvertimeHours: round2(current.statutoryOvertimeHours),
-      currentSingleMonthHours: round2(current.statutoryOvertimeHours + current.legalHolidayHours),
-    };
-  }
-
   // ---------------------------------------------------- 休憩・インターバル
 
   /**
@@ -335,7 +291,6 @@
     prefixTotals: prefixTotals,
     comparePrevious: comparePrevious,
     toHistoryRecord: toHistoryRecord,
-    agreement36Stats: agreement36Stats,
     breakNotice: breakNotice,
   };
 })((globalThis.WT = globalThis.WT || {}));

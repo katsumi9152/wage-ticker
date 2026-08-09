@@ -405,20 +405,6 @@
     near(rec.totalWorkedHours, 200);
   });
 
-  test('8.1 36協定の目安(年間累計・45時間超の回数・複数月平均)', function () {
-    var history = [
-      { label: '2026-05', statutoryOvertimeHours: 50, legalHolidayHours: 0 },
-      { label: '2026-06', statutoryOvertimeHours: 30, legalHolidayHours: 8 },
-      { label: '2026-07', statutoryOvertimeHours: 46, legalHolidayHours: 0 },
-    ];
-    var stats = A.agreement36Stats(history, { label: '2026-08', statutoryOvertimeHours: 20, legalHolidayHours: 0 });
-    eq(stats.monthsCounted, 4);
-    near(stats.annualOvertimeHours, 146);
-    eq(stats.over45Count, 2, '50時間と46時間の2回');
-    near(stats.averages[0].averageHours, 33, 1e-9, '直近2ヶ月(46 と 20)の平均');
-    eq(stats.averages.length, 3, '4ヶ月ぶんしかないので2〜4ヶ月平均まで');
-  });
-
   test('7.4 履歴は12ヶ月を超えたら古いものから消える', function () {
     var settings = baseSettings();
     var history = [];

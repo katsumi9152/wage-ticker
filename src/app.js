@@ -499,15 +499,10 @@
     }
     html += '</div>';
 
-    // --- 36協定の目安(SPEC 8.1)
+    // --- 残業時間の目安(SPEC 8.1)。今月ぶんの時間だけを見せる。
     var otMinutes = b.statutoryOvertime.minutes + b.statutoryOvertimeOver60.minutes;
-    var stats = A.agreement36Stats(store.history, {
-      label: ctx.period.label,
-      statutoryOvertimeHours: otMinutes / 60,
-      legalHolidayHours: b.legalHoliday.minutes / 60,
-    });
     var pct45 = Math.min(100, (otMinutes / WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES) * 100);
-    html += '<div class="sec"><h3>36協定の目安(参考)</h3>';
+    html += '<div class="sec"><h3>残業時間の目安(参考)</h3>';
     html += kv('今月の法定時間外', fmtHours(otMinutes));
     html += '<div class="bar"><i class="' + (otMinutes > WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES ? 'over' : '') +
       '" style="width:' + pct45.toFixed(1) + '%"></i></div>';
@@ -521,12 +516,7 @@
       singleMonthMinutes < WT.AGREEMENT_36.MONTHLY_HARD_MINUTES
         ? '残り ' + fmtHours(WT.AGREEMENT_36.MONTHLY_HARD_MINUTES - singleMonthMinutes)
         : '超過');
-    html += kv('直近' + stats.monthsCounted + 'ヶ月の累計', stats.annualOvertimeHours.toFixed(1) + ' 時間');
-    html += kv('月45時間超の回数', stats.over45Count + ' 回');
-    for (var i = 0; i < stats.averages.length; i++) {
-      html += kv('直近' + stats.averages[i].months + 'ヶ月平均(休日労働含む)', stats.averages[i].averageHours.toFixed(1) + ' 時間');
-    }
-    html += '<p class="note-line">正式な36協定の管理・届出は会社の勤怠システムで行われます。ここでの表示は参考情報です。</p>';
+    html += '<p class="note-line">年間の累計や「月45時間超が年に何回か」といった管理は、会社の勤怠システムが行うものです。ここでは今月ぶんの時間だけを目安として出しています。</p>';
     html += '</div>';
 
     // --- 気づき(SPEC 8.2)
