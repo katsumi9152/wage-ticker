@@ -107,6 +107,30 @@
       </div>
     </section>
 
+    <!-- 先月との比較(同じ経過日数時点)。金額は出さず、時間の内訳だけを見せる -->
+    <section class="card compare">
+      <div class="stat-label">先月との比較(同じ経過日数)</div>
+      <div class="hbar-row">
+        <span class="hbar-name">今月</span>
+        <span class="hbar">
+          <i class="hbar-seg is-normal" id="cmpNowNormal"></i><i class="hbar-seg is-ot" id="cmpNowOt"></i>
+        </span>
+        <span class="hbar-total" id="cmpNowTotal">0:00</span>
+      </div>
+      <div class="hbar-row">
+        <span class="hbar-name">先月</span>
+        <span class="hbar">
+          <i class="hbar-seg is-normal" id="cmpPrevNormal"></i><i class="hbar-seg is-ot" id="cmpPrevOt"></i>
+        </span>
+        <span class="hbar-total" id="cmpPrevTotal">0:00</span>
+      </div>
+      <div class="hbar-legend">
+        <span><i class="sw sw--normal"></i>通常</span>
+        <span><i class="sw sw--ot"></i>残業</span>
+        <span id="cmpNote"></span>
+      </div>
+    </section>
+
     <!-- ④ 補助情報(デフォルト折りたたみ) -->
     <details class="card details" id="detailsPanel">
       <summary>内訳と目安</summary>

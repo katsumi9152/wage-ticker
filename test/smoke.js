@@ -56,6 +56,15 @@
     eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
   });
 
+  test('先月との比較は、通常と残業を色分けした横棒で出す', function () {
+    frame();
+    ok(String(el('cmpNowNormal').style.width).indexOf('%') > 0, '今月の通常時間の棒が無い');
+    ok(String(el('cmpNowOt').style.width).indexOf('%') > 0, '今月の残業時間の棒が無い');
+    ok(String(el('cmpPrevNormal').style.width).indexOf('%') > 0, '先月の棒が無い');
+    ok(el('cmpNowTotal').textContent.indexOf(':') > 0, '今月の合計時間が出ていない');
+    ok(el('cmpNowTotal').textContent.indexOf('¥') < 0, 'このグラフに金額は出さない');
+  });
+
   test('今月の法定時間外と、45時間・60時間までの残りを数字で出す', function () {
     S.settings.monthlyBaseSalary = 300000;
     refresh();

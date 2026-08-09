@@ -215,6 +215,9 @@
     }
 
     renderOvertime(monthTotal);
+    renderCompare(monthTotal, ctx.prev
+      ? A.prefixTotals(ctx.prev.days, ctx.prev.period.start, P.elapsedDays(ctx.period, ctx.now))
+      : null);
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
@@ -235,6 +238,32 @@
 
     setOtTone($('ot45').parentNode, to45, 10 * 60);
     setOtTone($('ot60').parentNode, to60, 10 * 60);
+  }
+
+  /**
+   * 先月との比較(同じ経過日数時点)を横棒で見せる。金額は出さず時間だけ。
+   * 通常 = 所定内、残業 = 法定内残業 + 法定時間外 + 法定休日。
+   */
+  function renderCompare(monthTotal, prevTotal) {
+    function split(b) {
+      if (!b) return { normal: 0, ot: 0, total: 0 };
+      var normal = b.scheduledInside.minutes;
+      var ot = b.legalInsideOvertime.minutes + b.statutoryOvertime.minutes +
+        b.statutoryOvertimeOver60.minutes + b.legalHoliday.minutes;
+      return { normal: normal, ot: ot, total: normal + ot };
+    }
+    var now = split(monthTotal);
+    var prev = split(prevTotal);
+    var max = Math.max(now.total, prev.total, 1);
+    var pct = function (v) { return ((v / max) * 100).toFixed(1) + '%'; };
+
+    $('cmpNowNormal').style.width = pct(now.normal);
+    $('cmpNowOt').style.width = pct(now.ot);
+    $('cmpPrevNormal').style.width = pct(prev.normal);
+    $('cmpPrevOt').style.width = pct(prev.ot);
+    $('cmpNowTotal').textContent = fmtHours(now.total);
+    $('cmpPrevTotal').textContent = fmtHours(prev.total);
+    $('cmpNote').textContent = prevTotal ? '' : '先月の記録がたまると比べられます';
   }
 
   /** 残りが少なくなったら色で気づけるようにする(警告色ではなく色味の変化) */
