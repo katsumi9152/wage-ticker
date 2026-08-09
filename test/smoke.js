@@ -56,28 +56,12 @@
     eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
   });
 
-  test('時計: 外側=午前 / 内側=午後の二重文字盤が描かれる', function () {
-    frame();
-    eq((el('clockTicks').innerHTML.match(/<line/g) || []).length, 24, '2つの輪の目盛り(12×2)が無い');
-    eq((el('clockLabels').innerHTML.match(/<text/g) || []).length, 8, '時刻の数字が足りない');
-    ok(el('clockPlanned').innerHTML.indexOf('<path') >= 0, '予定の勤務帯が描かれていない');
-    ok(el('clockBreak').innerHTML.indexOf('<path') >= 0, '昼休憩が描かれていない');
-    ok(el('clockHand').getAttribute('x2') !== null, '現在時刻の印が無い');
-    ok(el('clockValue').textContent.indexOf(':') > 0, '中央に実働時間が出ていない');
-    ok(el('clockCap').textContent.indexOf('予定') === 0, '予定の時刻が添えられていない');
-  });
-
-  test('時計: 昼をまたぐ予定は午前と午後の両方の輪に分かれる', function () {
-    // 9:00〜17:30 は 12:00 をまたぐので、2本の弧になる
-    eq((el('clockPlanned').innerHTML.match(/<path/g) || []).length, 2, '午前と午後に分かれていない');
-  });
-
-  test('棒グラフ: 今月と先月を並べ、基本給のラインを引く', function () {
+  test('今月の法定時間外と、45時間・60時間までの残りを数字で出す', function () {
     S.settings.monthlyBaseSalary = 300000;
     refresh();
-    ok(String(el('monthBarFill').style.height).indexOf('%') > 0, '今月の棒が伸びていない');
-    ok(String(el('prevBarFill').style.height).indexOf('%') > 0, '先月の棒が描かれていない');
-    ok(el('monthBarMarks').innerHTML.indexOf('is-base') >= 0, '基本給のラインが無い');
+    eq(el('otNow').textContent, '0:00', '法定時間外の実績が出ていない');
+    eq(el('ot45').textContent, '45:00', '45時間までの残りが違う');
+    eq(el('ot60').textContent, '60:00', '60時間までの残りが違う');
   });
 
   test('金額はぼかさずそのまま表示される', function () {

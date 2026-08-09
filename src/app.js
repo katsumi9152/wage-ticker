@@ -94,162 +94,6 @@
     });
   }
 
-  // -------------------------------------------------------- 時計ゲージ
-
-  /**
-   * 24時間を二重の文字盤で表す。外側の輪が午前(0:00〜12:00)、内側の輪が午後(12:00〜24:00)。
-   * どちらの輪も12時間で1周し、真上が起点(0時 / 12時)。
-   */
-  var CLOCK = { cx: 100, cy: 100, rAm: 76, rPm: 54 };
-
-  function polar(r, deg) {
-    var rad = ((deg - 90) * Math.PI) / 180;
-    return { x: CLOCK.cx + r * Math.cos(rad), y: CLOCK.cy + r * Math.sin(rad) };
-  }
-
-  /** 円弧のパス。sweep は時計回りの角度。 */
-  function arcPath(r, startDeg, sweepDeg) {
-    if (!(sweepDeg > 0.01)) return '';
-    if (sweepDeg > 359.9) sweepDeg = 359.9;
-    var s = polar(r, startDeg);
-    var e = polar(r, startDeg + sweepDeg);
-    return 'M' + s.x.toFixed(2) + ' ' + s.y.toFixed(2) +
-      ' A' + r + ' ' + r + ' 0 ' + (sweepDeg > 180 ? 1 : 0) + ' 1 ' + e.x.toFixed(2) + ' ' + e.y.toFixed(2);
-  }
-
-  /** その時刻がどちらの輪に乗るか */
-  function ringRadius(minutesOfDay) {
-    return ((minutesOfDay % 1440) + 1440) % 1440 < 720 ? CLOCK.rAm : CLOCK.rPm;
-  }
-
-  function ringAngle(minutesOfDay) {
-    var m = ((minutesOfDay % 1440) + 1440) % 1440;
-    return ((m % 720) / 720) * 360;
-  }
-
-  /** 時間帯を、午前の輪と午後の輪に切り分けて円弧にする */
-  function ringArcs(startMin, spanMin) {
-    var out = [];
-    var cur = ((startMin % 1440) + 1440) % 1440;
-    var remain = spanMin;
-    var guard = 0;
-    while (remain > 0.01 && guard++ < 8) {
-      var base = cur < 720 ? 0 : 720;
-      var take = Math.min(remain, base + 720 - cur);
-      out.push({ r: cur < 720 ? CLOCK.rAm : CLOCK.rPm, start: ((cur - base) / 720) * 360, sweep: (take / 720) * 360 });
-      cur = (cur + take) % 1440;
-      remain -= take;
-    }
-    return out;
-  }
-
-  function arcsHtml(startMin, spanMin) {
-    var arcs = ringArcs(startMin, spanMin);
-    var html = '';
-    for (var i = 0; i < arcs.length; i++) {
-      var d = arcPath(arcs[i].r, arcs[i].start, arcs[i].sweep);
-      if (d) html += '<path d="' + d + '"/>';
-    }
-    return html;
-  }
-
-  /** 文字盤(1時間ごとの目盛りと時刻)を1度だけ組み立てる */
-  function buildGauge() {
-    var g = $('clockTicks');
-    if (!g) return;
-    var ticks = '';
-    for (var h = 0; h < 12; h++) {
-      var deg = (h / 12) * 360;
-      var major = h % 3 === 0;
-      // 外側=午前
-      var a1 = polar(major ? 82 : 84, deg);
-      var b1 = polar(88, deg);
-      ticks += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a1.x.toFixed(1) + '" y1="' + a1.y.toFixed(1) +
-        '" x2="' + b1.x.toFixed(1) + '" y2="' + b1.y.toFixed(1) + '"/>';
-      // 内側=午後
-      var a2 = polar(major ? 61 : 63, deg);
-      var b2 = polar(67, deg);
-      ticks += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a2.x.toFixed(1) + '" y1="' + a2.y.toFixed(1) +
-        '" x2="' + b2.x.toFixed(1) + '" y2="' + b2.y.toFixed(1) + '"/>';
-    }
-    g.innerHTML = ticks;
-
-    var labels = '';
-    var hours = [0, 3, 6, 9];
-    for (var i = 0; i < hours.length; i++) {
-      var deg2 = (hours[i] / 12) * 360;
-      var p = polar(96, deg2);
-      labels += '<text class="clabel" x="' + p.x.toFixed(1) + '" y="' + (p.y + 3.2).toFixed(1) + '">' + hours[i] + '</text>';
-      var q = polar(45, deg2);
-      labels += '<text class="clabel clabel--pm" x="' + q.x.toFixed(1) + '" y="' + (q.y + 3).toFixed(1) + '">' + (hours[i] + 12) + '</text>';
-    }
-    $('clockLabels').innerHTML = labels;
-  }
-
-  function minutesOfDayOf(ms) {
-    var d = new Date(ms);
-    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
-  }
-
-  /**
-   * 24時間の文字盤に、予定(出勤〜退勤)・休憩・実績・現在時刻の針を描く。
-   * 実績の弧は「出勤してから今まで」を示し、メーターのように伸びていく。
-   */
-  function renderClock(settings, nowMs, actual, todayWorkedMinutes) {
-    var startMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.start);
-    var endMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.end);
-    var brk = settings.breakWindow || {};
-    var bStart = T.parseTimeToMinutes(brk.start);
-    var bEnd = T.parseTimeToMinutes(brk.end);
-
-    $('clockPlanned').innerHTML = (startMin !== null && endMin !== null)
-      ? arcsHtml(startMin, (endMin - startMin + 1440) % 1440 || 1440)
-      : '';
-
-    $('clockBreak').innerHTML = (bStart !== null && bEnd !== null && bStart !== bEnd)
-      ? arcsHtml(bStart, (bEnd - bStart + 1440) % 1440)
-      : '';
-
-    if (actual && actual.startMs) {
-      var from = minutesOfDayOf(actual.startMs);
-      var to = minutesOfDayOf(actual.endMs || nowMs);
-      $('clockActual').innerHTML = arcsHtml(from, (to - from + 1440) % 1440);
-    } else {
-      $('clockActual').innerHTML = '';
-    }
-
-    // 現在時刻は、その時刻が乗っている輪の上に印を置く
-    var nowMin = minutesOfDayOf(nowMs);
-    var r = ringRadius(nowMin);
-    var deg = ringAngle(nowMin);
-    var tip = polar(r + 9, deg);
-    var tail = polar(r - 9, deg);
-    var hand = $('clockHand');
-    hand.setAttribute('x1', tail.x.toFixed(1));
-    hand.setAttribute('y1', tail.y.toFixed(1));
-    hand.setAttribute('x2', tip.x.toFixed(1));
-    hand.setAttribute('y2', tip.y.toFixed(1));
-
-    $('clockValue').textContent = T.formatMinutes(todayWorkedMinutes);
-    $('clockCap').textContent = startMin !== null && endMin !== null
-      ? '予定 ' + (settings.schedule.start) + '〜' + (settings.schedule.end) +
-        (bStart !== null ? ' / 休憩 ' + brk.start + '〜' + brk.end : '')
-      : '';
-  }
-
-  /**
-   * 今月と先月(同じ経過日数時点)の金額を並べた棒グラフ。
-   * 青い破線は基本給のライン。超えていれば残業代の領域に入っている。
-   */
-  function renderMonthBar(monthAmount, baseSalary, prevAmount) {
-    var max = Math.max(baseSalary * 1.15, monthAmount * 1.08, prevAmount * 1.08, 1);
-    $('monthBarFill').style.height = ((monthAmount / max) * 100).toFixed(1) + '%';
-    $('prevBarFill').style.height = ((prevAmount / max) * 100).toFixed(1) + '%';
-    $('monthBarMarks').innerHTML = baseSalary > 0
-      ? '<i class="vbar-mark is-base" style="bottom:' + ((baseSalary / max) * 100).toFixed(1) + '%"></i>'
-      : '';
-    $('monthBar').classList.toggle('over-base', monthAmount > baseSalary && baseSalary > 0);
-  }
 
   // ------------------------------------------------------------ 集計処理
 
@@ -324,10 +168,6 @@
       autoInfo: autoInfo,
       prev: previousPeriodDays(period, settings),
     };
-    // 先月の確定合計(縦バーの赤いライン)
-    ctx.prevTotalAmount = ctx.prev
-      ? A.prefixTotals(ctx.prev.days, ctx.prev.period.start, 400).amount
-      : 0;
 
     if (Date.now() - lastLogSavedAt > 60000) {
       lastLogSavedAt = Date.now();
@@ -374,23 +214,34 @@
       diffEl.hidden = true;
     }
 
-    renderClock(ctx.settings, Date.now(), todayActualSpan(), todayTotal.workedMinutes);
-    // 棒グラフの「先月」は、同じ経過日数時点までの金額(月途中でも公平に比べられる)
-    renderMonthBar(monthTotal.amount, Number(ctx.settings.monthlyBaseSalary || 0), cmp ? cmp.baseAmount : 0);
+    renderOvertime(monthTotal);
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
   }
 
-  /** 時計に描く「今日の実績の弧」。勤務中なら現在まで、終業後は退勤時刻まで。 */
-  function todayActualSpan() {
-    if (ctx.active) return { startMs: ctx.active.startMs, endMs: null };
-    var todayKey = T.dateKey(ctx.now);
-    for (var i = ctx.agg.days.length - 1; i >= 0; i--) {
-      var d = ctx.agg.days[i];
-      if (d.date === todayKey && d.kind === 'work') return { startMs: d.clockIn, endMs: d.clockOut };
-    }
-    return null;
+  /**
+   * 今月の法定時間外と、45時間・60時間までの残り。
+   * 45時間は36協定の原則上限、60時間は割増率が 1.25 → 1.50 に変わるライン。
+   */
+  function renderOvertime(monthTotal) {
+    var otMinutes = monthTotal.statutoryOvertime.minutes + monthTotal.statutoryOvertimeOver60.minutes;
+    var to45 = WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes;
+    var to60 = WT.OVER60_THRESHOLD_MINUTES - otMinutes;
+
+    $('otNow').textContent = fmtHours(otMinutes);
+    $('ot45').textContent = to45 > 0 ? fmtHours(to45) : '超過';
+    $('ot60').textContent = to60 > 0 ? fmtHours(to60) : '超過';
+
+    setOtTone($('ot45').parentNode, to45, 10 * 60);
+    setOtTone($('ot60').parentNode, to60, 10 * 60);
+  }
+
+  /** 残りが少なくなったら色で気づけるようにする(警告色ではなく色味の変化) */
+  function setOtTone(item, remainMinutes, warnMinutes) {
+    if (!item || !item.classList) return;
+    item.classList.toggle('is-warn', remainMinutes > 0 && remainMinutes <= warnMinutes);
+    item.classList.toggle('is-over', remainMinutes <= 0);
   }
 
   function renderStatus(live) {
@@ -1140,7 +991,6 @@
   function boot() {
     store.load();
     initTheme();
-    buildGauge();
     initConfirm();
     initActions();
     initSettings();

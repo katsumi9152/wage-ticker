@@ -112,7 +112,7 @@ body { min-height: 100svh; }
 .app {
   max-width: 540px;
   margin: 0 auto;
-  padding: max(12px, env(safe-area-inset-top)) 14px 120px;
+  padding: max(12px, env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -209,24 +209,12 @@ body { min-height: 100svh; }
 .hero {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px 16px 18px;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 16px 20px;
+  text-align: center;
   /* 加算中の区分によって差し色が変わる(既定は所定内) */
   --tone: var(--cyan);
-}
-.hero-top {
-  display: grid;
-  grid-template-columns: 1fr 58px;
-  gap: 16px;
-  align-items: stretch;
-}
-.clock-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: 0;
 }
 .hero.tone-legalInsideOvertime { --tone: var(--blue); }
 .hero.tone-statutoryOvertime,
@@ -234,86 +222,6 @@ body { min-height: 100svh; }
 .hero.tone-night { --tone: var(--violet); }
 .hero.tone-legalHoliday { --tone: var(--pink); }
 .hero.tone-break { --tone: var(--faint); }
-
-/* 24時間の二重文字盤(外側=午前 / 内側=午後。どちらも真上が起点) */
-.clock {
-  position: relative;
-  width: min(216px, 100%);
-  margin: 0 auto;
-}
-.clock svg { display: block; width: 100%; height: auto; overflow: visible; }
-
-.clock-track {
-  fill: none;
-  stroke: var(--track);
-  stroke-width: 11;
-}
-.clock-planned path {
-  fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 32%, transparent);
-  stroke-width: 11;
-}
-.clock-break path {
-  fill: none;
-  stroke: color-mix(in srgb, var(--faint) 55%, transparent);
-  stroke-width: 11;
-}
-.clock-actual path {
-  fill: none;
-  stroke: var(--tone);
-  stroke-width: 5;
-  stroke-linecap: round;
-  transition: stroke 1s ease;
-}
-.clock .ctick { stroke: var(--track); stroke-width: 1.5; }
-.clock .ctick.is-major { stroke: var(--faint); stroke-width: 2.2; }
-.clock .clabel {
-  fill: var(--faint);
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  text-anchor: middle;
-}
-.clock .clabel--pm { font-size: 8px; opacity: 0.8; }
-.clock-hand {
-  stroke: var(--ink);
-  stroke-width: 2.6;
-  stroke-linecap: round;
-}
-.clock-hub { fill: var(--faint); }
-
-.clock-center {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
-  pointer-events: none;
-}
-.clock-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.clock-unit {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-  letter-spacing: 0.08em;
-}
-.clock-cap {
-  margin-top: 8px;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
-
-/* 金額 */
-.hero-figure { text-align: center; margin-top: 2px; }
 
 .amount {
   font-variant-numeric: tabular-nums;
@@ -323,7 +231,7 @@ body { min-height: 100svh; }
 .amount--main {
   font-size: var(--fs-hero);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.05;
   color: var(--ink);
 }
 .amount--main .yen { font-size: 0.55em; color: var(--muted); margin-right: 1px; }
@@ -335,7 +243,6 @@ body { min-height: 100svh; }
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
 }
 .hero-label {
   font-size: var(--fs-sm);
@@ -349,65 +256,42 @@ body { min-height: 100svh; }
   color: var(--tone);
 }
 .hero-meta {
-  margin-top: 6px;
+  margin-top: 4px;
   font-family: var(--mono);
   font-size: var(--fs-sm);
   color: var(--faint);
 }
 
-/* 今月と先月(同じ経過日数時点)を並べた棒グラフ。青い線が基本給。 */
-.vchart { display: flex; align-items: stretch; }
-.vchart-plot {
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: stretch;
+/* ------------------------------------------------- 今月の法定時間外 */
+
+.otcard { padding: 14px 16px 13px; }
+.ot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  margin-top: 8px;
 }
-.vbar-col {
+.ot-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  flex: 1;
+  gap: 2px;
+  min-width: 0;
 }
-.vbar-track {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  min-height: 150px;
-  border-bottom: 1.5px solid var(--line);
-  background: var(--card-2);
-  border-radius: 3px 3px 0 0;
-  overflow: hidden;
+.ot-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
 }
-.vbar-fill {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 0;
-  background: var(--cyan);
-  border-radius: 3px 3px 0 0;
-  transition: height 0.6s ease, background 0.8s ease;
-}
-.vbar-fill.is-prev { background: var(--faint); opacity: 0.55; }
-/* 基本給を超えたら暖色になる(超えたことが色で分かる) */
-.vchart.over-base .vbar-fill:not(.is-prev) { background: var(--amber); }
-
-.vbar-marks { position: absolute; inset: 0 0 22px; pointer-events: none; }
-.vbar-mark {
-  position: absolute;
-  left: 0; right: 0;
-  height: 0;
-  border-top: 1.5px dashed var(--blue);
-}
-
-.vbar-cap {
+.ot-item.is-warn .ot-value { color: var(--amber); }
+.ot-item.is-over .ot-value { color: var(--red); }
+.ot-cap {
   font-size: var(--fs-xs);
   color: var(--faint);
-  letter-spacing: 0.06em;
-  height: 16px;
+  letter-spacing: 0.04em;
 }
-
 /* -------------------------------------------------------------- stats */
 
 .stats {
@@ -532,16 +416,10 @@ body { min-height: 100svh; }
 /* ---------------------------------------------------------- actionbar */
 
 .actionbar {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(10px + env(safe-area-inset-bottom));
-  width: min(512px, calc(100% - 28px));
   display: flex;
   align-items: stretch;
-  gap: 4px;
+  gap: 6px;
   padding: 8px;
-  z-index: 5;
 }
 
 .act {
