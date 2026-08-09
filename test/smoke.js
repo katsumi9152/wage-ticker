@@ -84,12 +84,28 @@
     ok(el('statsSection').hidden === false);
   });
 
-  test('今月の法定時間外と、45時間・60時間までの残りを数字で出す', function () {
+  test('残業メーター: 45時間・60時間の目印つきで出る', function () {
     S.settings.monthlyBaseSalary = 300000;
+    S.settings.fixedOvertimeHours = 0;
     refresh();
-    eq(el('otNow').textContent, '0:00', '法定時間外の実績が出ていない');
-    eq(el('ot45').textContent, '45:00', '45時間までの残りが違う');
-    eq(el('ot60').textContent, '60:00', '60時間までの残りが違う');
+    eq(el('otNow').textContent, '0:00', '今月の残業時間が出ていない');
+    ok(String(el('otFill').style.width).indexOf('%') > 0, 'メーターが描かれていない');
+    eq(el('otMark45').style.left, '75.0%', '45時間の目印は60時間目盛りの75%の位置');
+    eq(el('otMark60').style.left, '100.0%');
+    ok(el('otMarkLabels').innerHTML.indexOf('45h') >= 0, '目盛りのラベルが無い');
+    ok(el('otMarkFixed').hidden === true, '固定残業なしなら目印を出さない');
+  });
+
+  test('残業メーター: 固定残業を設定すると目印が増える', function () {
+    S.settings.fixedOvertimeHours = 30;
+    S.settings.fixedOvertimeAllowance = 60000;
+    refresh();
+    ok(el('otMarkFixed').hidden === false, '固定残業の目印が出ていない');
+    eq(el('otMarkFixed').style.left, '50.0%', '30時間は60時間目盛りの半分');
+    ok(el('otMarkLabels').innerHTML.indexOf('固定30h') >= 0);
+    S.settings.fixedOvertimeHours = 0;
+    S.settings.fixedOvertimeAllowance = 0;
+    refresh();
   });
 
   test('金額はぼかさずそのまま表示される', function () {

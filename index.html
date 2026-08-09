@@ -109,24 +109,21 @@
       </div>
     </section>
 
-    <!-- 今月の法定時間外と、45時間・60時間までの残り -->
+    <!-- 今月の残業メーター。細かい数字は「内訳と目安」に入れる -->
     <section class="card otcard">
-      <div class="stat-label">今月の法定時間外</div>
-      <div class="ot-grid">
-        <div class="ot-item">
-          <span class="ot-value" id="otNow">0:00</span>
-          <span class="ot-cap">実績</span>
-        </div>
-        <div class="ot-item">
-          <span class="ot-value" id="ot45">45:00</span>
-          <span class="ot-cap">45時間まで</span>
-        </div>
-        <div class="ot-item">
-          <span class="ot-value" id="ot60">60:00</span>
-          <span class="ot-cap">60時間まで</span>
-        </div>
+      <div class="ot-head">
+        <span class="stat-label">今月の残業</span>
+        <span class="ot-now" id="otNow">0:00</span>
       </div>
-      <p class="ot-fixed" id="otFixed" hidden></p>
+      <div class="meter" id="otMeter">
+        <div class="meter-track">
+          <i class="meter-fill" id="otFill"></i>
+          <i class="meter-mark is-fixed" id="otMarkFixed" hidden></i>
+          <i class="meter-mark is-45" id="otMark45"></i>
+          <i class="meter-mark is-60" id="otMark60"></i>
+        </div>
+        <div class="meter-labels" id="otMarkLabels"></div>
+      </div>
     </section>
 
     <!-- 先月との比較(同じ経過日数時点)。金額は出さず、時間の内訳だけを見せる -->

@@ -246,27 +246,34 @@
    */
   function renderOvertime(monthTotal) {
     var otMinutes = monthTotal.statutoryOvertime.minutes + monthTotal.statutoryOvertimeOver60.minutes;
-    var to45 = WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes;
-    var to60 = WT.OVER60_THRESHOLD_MINUTES - otMinutes;
+    var guide = WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES; // 月45時間
+    var line60 = WT.OVER60_THRESHOLD_MINUTES;          // 月60時間
+    var fixedMin = Number(ctx.settings.fixedOvertimeHours || 0) * 60;
+
+    // 目盛りは60時間までを基本に、超えたぶんだけ伸ばす
+    var max = Math.max(line60, otMinutes * 1.05, 1);
+    var pct = function (v) { return ((v / max) * 100).toFixed(1) + '%'; };
 
     $('otNow').textContent = fmtHours(otMinutes);
-    $('ot45').textContent = to45 > 0 ? fmtHours(to45) : '超過';
-    $('ot60').textContent = to60 > 0 ? fmtHours(to60) : '超過';
+    $('otFill').style.width = pct(Math.min(otMinutes, max));
+    $('otMark45').style.left = pct(guide);
+    $('otMark60').style.left = pct(line60);
 
-    setOtTone($('ot45').parentNode, to45, 10 * 60);
-    setOtTone($('ot60').parentNode, to60, 10 * 60);
-
-    // 固定残業代がある場合は、その消化ぐあいを添える
-    var fixedMin = Number(ctx.settings.fixedOvertimeHours || 0) * 60;
-    var el = $('otFixed');
+    var labels = '<span style="left:' + pct(guide) + '">45h</span>' +
+      '<span style="left:' + pct(line60) + '">60h</span>';
     if (fixedMin > 0) {
-      el.hidden = false;
-      var used = Math.min(otMinutes, fixedMin);
-      el.textContent = '固定残業 ' + fmtHours(used) + ' / ' + fmtHours(fixedMin) +
-        (otMinutes > fixedMin ? '(超過分に割増がついています)' : '(ここまでは追加の割増なし)');
+      $('otMarkFixed').hidden = false;
+      $('otMarkFixed').style.left = pct(fixedMin);
+      labels = '<span class="is-fixed" style="left:' + pct(fixedMin) + '">固定' +
+        ctx.settings.fixedOvertimeHours + 'h</span>' + labels;
     } else {
-      el.hidden = true;
+      $('otMarkFixed').hidden = true;
     }
+    $('otMarkLabels').innerHTML = labels;
+
+    var meter = $('otMeter');
+    meter.classList.toggle('over-45', otMinutes > guide);
+    meter.classList.toggle('over-60', otMinutes > line60);
   }
 
   /**
@@ -293,13 +300,6 @@
     $('cmpNowTotal').textContent = fmtHours(now.total);
     $('cmpPrevTotal').textContent = fmtHours(prev.total);
     $('cmpNote').textContent = prevTotal ? '' : '先月の記録がたまると比べられます';
-  }
-
-  /** 残りが少なくなったら色で気づけるようにする(警告色ではなく色味の変化) */
-  function setOtTone(item, remainMinutes, warnMinutes) {
-    if (!item || !item.classList) return;
-    item.classList.toggle('is-warn', remainMinutes > 0 && remainMinutes <= warnMinutes);
-    item.classList.toggle('is-over', remainMinutes <= 0);
   }
 
   /** 状態バッジ。待機中/勤務中/休憩中/自動計測中を色でも見分けられるようにする。 */
@@ -466,6 +466,11 @@
   /** 固定残業代が足りているかを見るときの割増率(法定時間外の下限) */
   var RATE_OT = WT.RATE.STATUTORY_OVERTIME;
 
+  /** 「残り 3:20」または「超過 1:10」 */
+  function remainLabel(remainMinutes) {
+    return remainMinutes > 0 ? '残り ' + fmtHours(remainMinutes) : '超過 ' + fmtHours(-remainMinutes);
+  }
+
   function kv(k, v, opts) {
     var o = opts || {};
     return '<div class="kv' + (o.zero ? ' is-zero' : '') + '"><span class="k">' + k +
@@ -531,23 +536,18 @@
     var pct45 = Math.min(100, (otMinutes / WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES) * 100);
     html += '<div class="sec"><h3>残業時間の目安(参考)</h3>';
     html += kv('今月の法定時間外', fmtHours(otMinutes));
-    html += '<div class="bar"><i class="' + (otMinutes > WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES ? 'over' : '') +
-      '" style="width:' + pct45.toFixed(1) + '%"></i></div>';
-    html += '<p class="note-line">月45時間(原則上限)まで残り ' +
-      fmtHours(Math.max(0, WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes)) +
-      ' / 月60時間(割増率1.50に変わるライン)まで残り ' +
-      fmtHours(Math.max(0, WT.OVER60_THRESHOLD_MINUTES - otMinutes)) + '</p>';
+    html += kv('月45時間(36協定の原則上限)まで', remainLabel(WT.AGREEMENT_36.MONTHLY_GUIDE_MINUTES - otMinutes));
+    html += kv('月60時間(割増率が1.50に変わる)まで', remainLabel(WT.OVER60_THRESHOLD_MINUTES - otMinutes));
     // 単月100時間未満は、特別条項があっても超えられない法律上の上限(休日労働を含む)
     var singleMonthMinutes = otMinutes + b.legalHoliday.minutes;
-    html += kv('単月100時間まで(休日労働を含む)',
-      singleMonthMinutes < WT.AGREEMENT_36.MONTHLY_HARD_MINUTES
-        ? '残り ' + fmtHours(WT.AGREEMENT_36.MONTHLY_HARD_MINUTES - singleMonthMinutes)
-        : '超過');
+    html += kv('単月100時間(休日労働を含む)まで',
+      remainLabel(WT.AGREEMENT_36.MONTHLY_HARD_MINUTES - singleMonthMinutes));
     // 固定残業代が、その時間ぶんの割増賃金額を下回っていないか(下回る定めは無効)
     var fixedMinutes = Number(s.fixedOvertimeHours || 0) * 60;
     if (fixedMinutes > 0) {
       var required = (fixedMinutes / 60) * RATE_OT * agg.rates.baseHourlyRate;
       var allowance = Number(s.fixedOvertimeAllowance || 0);
+      html += kv('固定残業の消化', fmtHours(Math.min(otMinutes, fixedMinutes)) + ' / ' + fmtHours(fixedMinutes));
       html += kv('固定残業代', fmtYen(allowance) + ' / ' + s.fixedOvertimeHours + '時間ぶん', { money: true });
       if (allowance < required - 1) {
         html += '<p class="note-line">固定残業代が、' + s.fixedOvertimeHours +
