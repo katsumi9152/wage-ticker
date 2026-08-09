@@ -152,10 +152,31 @@ body { min-height: 100svh; }
   min-width: 0;
   flex-wrap: wrap;
 }
+/*
+ * ロゴ文字。"Wage" は地の文字色、"Ticker" だけ等幅フォント+アクセント色にして
+ * 「刻み続けるカウンター」を文字だけで示す。末尾のカーソルはゆっくり点滅する
+ * (ターミナルの入力カーソルのイメージ。prefers-reduced-motion では静止する)。
+ */
 .brand-name {
   font-size: 19px;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+.brand-wage { color: var(--ink); }
+.brand-ticker {
+  font-family: var(--mono);
+  color: var(--cyan);
+  letter-spacing: 0.01em;
+}
+.brand-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  color: var(--cyan);
+  animation: brand-blink 1.1s step-end infinite;
+}
+@keyframes brand-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
 }
 
 .pill {
