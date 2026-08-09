@@ -152,6 +152,23 @@
     ok(el('clockOutBtn').disabled === false, '退勤ボタンが押せる状態になる');
   });
 
+  test('金額の円の位が増えたときだけ、短いパルスが付く', function () {
+    frame();
+    el('liveInt').classList.remove('is-tick'); // 直前の描画ぶんをリセットしてから見る
+    var before = el('liveInt').textContent;
+
+    frame(); // ごく短い間隔では、円の位が変わらないこともある
+    if (el('liveInt').textContent === before) {
+      ok(!el('liveInt').classList.contains('is-tick'), '値が変わっていないのにパルスが付いている');
+    }
+
+    el('liveInt').classList.remove('is-tick');
+    S.state.clockInAt -= 2 * 60 * 60 * 1000; // 出勤時刻を2時間分さかのぼらせ、金額を確実に動かす
+    refresh(); // heavy() を通して ctx を作り直させてから描画する(frame() だけでは反映されない)
+    ok(el('liveInt').textContent !== before, '金額が動いていない(テストの前提が崩れている)');
+    ok(el('liveInt').classList.contains('is-tick'), '値が変わったのにパルスが付いていない');
+  });
+
   test('打刻: 確認をキャンセルすると何も起きない', function () {
     el('breakBtn').fire('click');
     eq(el('confirmText').textContent, '休憩を開始しますか?');

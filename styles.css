@@ -259,6 +259,14 @@ body { min-height: 100svh; }
 .amount--main .yen { font-size: 0.55em; color: var(--muted); margin-right: 1px; }
 .amount--main .dec { font-size: 0.5em; color: var(--muted); }
 
+/* 円の位が1つ増えるたびの、ごく短い気づき程度のパルス(警告色・音は使わない) */
+#liveInt.is-tick { animation: tick-pulse 0.5s ease-out; display: inline-block; }
+@keyframes tick-pulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.035); text-shadow: 0 0 14px color-mix(in srgb, var(--tone) 55%, transparent); }
+  100% { transform: scale(1); text-shadow: none; }
+}
+
 .hero-labels {
   display: flex;
   align-items: center;
@@ -439,6 +447,23 @@ body { min-height: 100svh; }
   color: var(--muted);
   letter-spacing: 0.06em;
 }
+
+/*
+ * カード見出しに色の帯を添えて、ブロックの境目をひと目で分かるようにする
+ * (計算式の枠などで使っている「左に色の帯」の作法をセクション見出しにも広げた)。
+ * ヒーローはそれ自体が最大の要素で見出しも中央寄せのため、帯は付けない。
+ */
+#todayCard .stat-label,
+#monthCard .stat-label,
+.ot-head .stat-label,
+.compare > .stat-label {
+  padding-left: 9px;
+  border-left: 3px solid var(--faint);
+}
+#todayCard .stat-label { border-left-color: var(--cyan); }
+#monthCard .stat-label { border-left-color: var(--blue); }
+.ot-head .stat-label { border-left-color: var(--amber); }
+.compare > .stat-label { border-left-color: var(--violet); }
 .amount--sub {
   font-size: var(--fs-xl);
   font-weight: 800;
@@ -596,6 +621,11 @@ dialog.sheet {
 }
 dialog.sheet::backdrop { background: rgba(6, 11, 20, 0.55); backdrop-filter: blur(3px); }
 dialog.sheet--narrow { max-height: 88svh; }
+dialog.sheet[open] { animation: sheet-in 0.22s ease-out; }
+@keyframes sheet-in {
+  from { transform: translateY(18px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
 
 .sheet-head {
   display: flex;
@@ -708,6 +738,11 @@ dialog.confirm {
   box-shadow: 0 20px 50px rgba(6, 11, 20, 0.28);
 }
 dialog.confirm::backdrop { background: rgba(6, 11, 20, 0.5); }
+dialog.confirm[open] { animation: confirm-in 0.18s ease-out; }
+@keyframes confirm-in {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 .confirm-text {
   margin: 0 0 20px;
   font-size: var(--fs-lg);

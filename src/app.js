@@ -373,6 +373,19 @@
     else btn.textContent = text;
   }
 
+  /** 円の整数部が1つ増えるたびに、ごく短いパルスで気づける程度に見せる */
+  var lastLiveIntText = null;
+  function setLiveInt(text) {
+    var el = $('liveInt');
+    if (text !== lastLiveIntText) {
+      lastLiveIntText = text;
+      el.classList.remove('is-tick');
+      void el.offsetWidth; // 再生し直すための強制リフロー
+      el.classList.add('is-tick');
+    }
+    el.textContent = text;
+  }
+
   /** 秒単位の描画。ここでは軽い計算しかしない(SPEC 14)。 */
   function renderFrame() {
     if (ctx) {
@@ -380,7 +393,7 @@
       var hero = $('heroCard');
       if (live) {
         var parts = fmtYenParts(live.breakdown.amount);
-        $('liveInt').textContent = parts.int;
+        setLiveInt(parts.int);
         $('liveDec').textContent = parts.dec;
         $('tickerLabel').textContent = ctx.settings.autoMode ? '今日の勤務(自動)' : '今日の勤務';
         $('liveMeta').textContent = liveMetaText(live);
@@ -390,7 +403,7 @@
       } else {
         var last = lastSessionAmount();
         var p2 = fmtYenParts(last.amount);
-        $('liveInt').textContent = p2.int;
+        setLiveInt(p2.int);
         $('liveDec').textContent = p2.dec;
         $('tickerLabel').textContent = last.label;
         $('liveMeta').textContent = last.meta;
