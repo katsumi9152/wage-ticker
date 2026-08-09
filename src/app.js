@@ -65,13 +65,20 @@
 
   // ------------------------------------------------------ 覗き見防止(11章)
 
+  /** 覗き見防止のぼかしが有効か(設定でオフにできる。既定はオン) */
+  function privacyEnabled() {
+    return store.settings.privacyBlur !== false;
+  }
+
   function applyReveal() {
-    var masked = !reveal.on;
+    var on = privacyEnabled();
+    var masked = on && !reveal.on;
     var nodes = document.querySelectorAll('.amount, .diff, .kv .v.money');
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].classList.toggle('is-masked', masked);
     }
-    $('eyeBtn').classList.toggle('is-on', reveal.on);
+    $('eyeBtn').hidden = !on; // オフのときは目のアイコン自体を出さない
+    $('eyeBtn').classList.toggle('is-on', on && reveal.on);
   }
 
   function setReveal(on, autoHideMs) {
@@ -609,6 +616,7 @@
     $('setBreakEnd').disabled = !hasBreak;
 
     $('setInterval').value = s.intervalGuideHours;
+    $('setPrivacyBlur').checked = s.privacyBlur !== false;
     $('setAutoMode').checked = !!s.autoMode;
     $('scheduleRow').style.display = s.autoMode ? 'flex' : 'none';
     $('setScheduleStart').value = (s.schedule && s.schedule.start) || '09:00';
@@ -645,6 +653,7 @@
       ? null
       : { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
     s.intervalGuideHours = Number($('setInterval').value) || 0;
+    s.privacyBlur = $('setPrivacyBlur').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
 

@@ -67,6 +67,24 @@
     document.hidden = false;
   });
 
+  test('設定: ぼかしをオフにすると金額がそのまま表示される', function () {
+    S.settings.privacyBlur = false;
+    refresh();
+    ok(!el('liveAmount').classList.contains('is-masked'), 'オフなのにぼけている');
+    ok(el('eyeBtn').hidden === true, 'オフのときは目のアイコンを出さない');
+
+    document.hidden = true;
+    fireDoc('visibilitychange');
+    document.hidden = false;
+    ok(!el('liveAmount').classList.contains('is-masked'), 'オフなら画面を離れてもぼかしに戻らない');
+
+    // 既定(オン)に戻す
+    S.settings.privacyBlur = true;
+    refresh();
+    ok(el('liveAmount').classList.contains('is-masked'), 'オンに戻したらぼかしが復活する');
+    ok(el('eyeBtn').hidden === false, 'オンなら目のアイコンが出る');
+  });
+
   test('設定: 所定労働日の曜日は月曜始まりで並ぶ', function () {
     var html = el('setWorkdays').innerHTML;
     var order = [];
