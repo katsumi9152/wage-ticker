@@ -1,30 +1,32 @@
 /* WageTicker — 計器ダッシュボード。外部フォント・ライブラリは読み込まない(SPEC 14)
  *
- * 配色は見本(ライト: 淡いブルーグレー地に白カード / ダーク: 濃紺地にカード)に合わせている。
+ * 配色はパステル寄り(ライト: 淡いブルーグレー地に白カード / ダーク: 落ち着いた紺地にカード)。
  * テーマは3状態: 既定は端末の設定に追従し、ボタンで light / dark を明示指定できる。
  * 色はすべて :root のトークンで定義し、コンポーネント側に生の色を書かない。
  */
 
 :root {
-  --ground: #e7ebf4;
-  --ground-2: #dde3f0;
+  /* パステル寄りの配色。彩度を落とし、地は青みのある淡いグレーでまとめる。
+     文字と背景のコントラストは落とさない(読みやすさは維持する)。 */
+  --ground: #eef1f7;
+  --ground-2: #e5e9f2;
   --card: #ffffff;
-  --card-2: #f4f6fb;
-  --line: #e2e7f0;
-  --ink: #0f172a;
-  --ink-2: #334155;
-  --muted: #6b7a91;
-  --faint: #97a3b6;
+  --card-2: #f5f7fc;
+  --line: #e4e8f2;
+  --ink: #2b3444;
+  --ink-2: #4a5568;
+  --muted: #7c88a0;
+  --faint: #a3adc2;
 
-  --cyan: #1f8fc4;
-  --amber: #d98324;
-  --green: #2e9e6b;
-  --red: #dc3f5c;
-  --blue: #2563eb;
-  --violet: #7c5cf0;
-  --pink: #c2569b;
+  --cyan: #4a9dc4;
+  --amber: #d8a24e;
+  --green: #5aab86;
+  --red: #d97b8b;
+  --blue: #6f8fd6;
+  --violet: #9a8fd8;
+  --pink: #cf8fb8;
 
-  --track: #dfe5f0;
+  --track: #e8ecf5;
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px rgba(15, 23, 42, 0.04);
   --radius: 20px;
   --radius-sm: 14px;
@@ -46,50 +48,50 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #070b12;
-    --ground-2: #0b111b;
-    --card: #101722;
-    --card-2: #151d2a;
-    --line: #1e2a3b;
-    --ink: #f1f5f9;
-    --ink-2: #cbd5e1;
-    --muted: #94a3b8;
-    --faint: #64748b;
+    --ground: #12161f;
+    --ground-2: #171c27;
+    --card: #1c222e;
+    --card-2: #222937;
+    --line: #2b3342;
+    --ink: #e8ecf4;
+    --ink-2: #c3cbd9;
+    --muted: #96a1b5;
+    --faint: #6f7a8d;
 
-    --cyan: #38bdf8;
-    --amber: #f5b342;
-    --green: #4ade80;
-    --red: #f2586f;
-    --blue: #60a5fa;
-    --violet: #a78bfa;
-    --pink: #f472b6;
+    --cyan: #8fd0ea;
+    --amber: #f0c98a;
+    --green: #9ad9b8;
+    --red: #eaa1ad;
+    --blue: #a5bbf0;
+    --violet: #bfb3f0;
+    --pink: #edaed4;
 
-    --track: #1b2534;
+    --track: #29313f;
     --shadow: none;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --ground: #070b12;
-  --ground-2: #0b111b;
-  --card: #101722;
-  --card-2: #151d2a;
-  --line: #1e2a3b;
-  --ink: #f1f5f9;
-  --ink-2: #cbd5e1;
-  --muted: #94a3b8;
-  --faint: #64748b;
+  --ground: #12161f;
+  --ground-2: #171c27;
+  --card: #1c222e;
+  --card-2: #222937;
+  --line: #2b3342;
+  --ink: #e8ecf4;
+  --ink-2: #c3cbd9;
+  --muted: #96a1b5;
+  --faint: #6f7a8d;
 
-  --cyan: #38bdf8;
-  --amber: #f5b342;
-  --green: #4ade80;
-  --red: #f2586f;
-  --blue: #60a5fa;
-  --violet: #a78bfa;
-  --pink: #f472b6;
+  --cyan: #8fd0ea;
+  --amber: #f0c98a;
+  --green: #9ad9b8;
+  --red: #eaa1ad;
+  --blue: #a5bbf0;
+  --violet: #bfb3f0;
+  --pink: #edaed4;
 
-  --track: #1b2534;
+  --track: #29313f;
   --shadow: none;
   color-scheme: dark;
 }
@@ -109,13 +111,21 @@ html, body {
 
 body { min-height: 100svh; }
 
+/* タイル(カード)の間隔は、縦も横もすべて --gap で統一する */
 .app {
+  --gap: 12px;
   max-width: 540px;
   margin: 0 auto;
   padding: max(12px, env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--gap);
+}
+
+.app > main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
 }
 
 .card {
@@ -363,7 +373,7 @@ body { min-height: 100svh; }
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--gap);
 }
 
 .stat {
@@ -478,7 +488,7 @@ body { min-height: 100svh; }
 .bar > i.over { background: var(--amber); }
 
 .disclaimer {
-  margin: 2px 4px 0;
+  margin: 0 4px;
   font-size: var(--fs-xs);
   line-height: 1.75;
   color: var(--faint);
@@ -523,6 +533,9 @@ body { min-height: 100svh; }
 .act--in { color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); }
 .act--out { color: var(--blue); border: 1px solid color-mix(in srgb, var(--blue) 32%, transparent); }
 .act--break { color: var(--muted); border: 1px solid var(--line); }
+.act--break .ic-resume { display: none; }
+.act--break.is-on .ic-pause { display: none; }
+.act--break.is-on .ic-resume { display: block; }
 .act--break.is-on { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
 .act--ot { color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); }
 .act[disabled] { color: var(--faint); opacity: 0.35; cursor: default; }

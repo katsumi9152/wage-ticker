@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0e0c">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#eef1f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12161f" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <meta name="description" content="出勤するだけで金額と労働時間がリアルタイムに積み上がる給料メーター">
 <title>WageTicker</title>
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -48,16 +49,30 @@
 
   <!-- 操作(手動: 出勤/退勤の2つだけ / 自動モード: 残業開始・終了のみ) -->
   <nav class="actionbar card">
+    <!-- 開始(▶)・停止(■)・一時停止(‖)で、カウンターの動きと対応させる -->
     <button class="act act--in" id="clockInBtn" type="button">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M10 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6A1.7 1.7 0 0 0 6.2 19.5H10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14.5 8.2 18.8 12l-4.3 3.8M18 12H9.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M10.1 8.2 16 12l-5.9 3.8z" fill="currentColor"/>
+      </svg>
       <span>出勤</span>
     </button>
     <button class="act act--out" id="clockOutBtn" type="button">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M14 4.5h3.8A1.7 1.7 0 0 1 19.5 6.2v11.6A1.7 1.7 0 0 1 17.8 19.5H14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 8.2 5.2 12l4.3 3.8M6 12h8.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="8.7" y="8.7" width="6.6" height="6.6" rx="1.4" fill="currentColor"/>
+      </svg>
       <span>退勤</span>
     </button>
     <button class="act act--break" id="breakBtn" type="button">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4.6 9.4h11.2v5.2a4 4 0 0 1-4 4H8.6a4 4 0 0 1-4-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.8 10.6h1.8a2.4 2.4 0 0 1 0 4.8h-1.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 3.6v2.4M12 3.6v2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M10.2 8.6v6.8M13.8 8.6v6.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+      </svg>
+      <svg class="ic-resume" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M10.1 8.2 16 12l-5.9 3.8z" fill="currentColor"/>
+      </svg>
       <span>休憩開始</span>
     </button>
     <button class="act act--ot" id="overtimeBtn" type="button" hidden>

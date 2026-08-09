@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>WageTicker</title>
-  <rect width="512" height="512" rx="112" fill="#0B1220"/>
+  <rect width="512" height="512" rx="112" fill="#1C222E"/>
   <!-- 右肩上がりのライン -->
-  <polyline points="92,400 196,356 288,388 420,292" fill="none" stroke="#F5B342"
+  <polyline points="92,400 196,356 288,388 420,292" fill="none" stroke="#F0C98A"
             stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="420" cy="292" r="23" fill="#F5B342"/>
+  <circle cx="420" cy="292" r="23" fill="#F0C98A"/>
   <!-- ¥ -->
-  <g fill="#38BDF8">
+  <g fill="#8FD0EA">
     <polygon points="146,84 202,84 256,178 310,84 366,84 292,206 344,206 344,240 274,240 274,262 344,262 344,296 274,296 274,336 238,336 238,296 168,296 168,262 238,262 238,240 168,240 168,206 220,206"/>
   </g>
 </svg>
