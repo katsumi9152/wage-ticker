@@ -562,7 +562,9 @@
   function initActions() {
     $('clockInBtn').addEventListener('click', function () {
       if (!requireSetup()) return;
-      askConfirm('出勤しますか?', function () {
+      // 同じ日に2回目の出勤は「再開」。退勤からいままでは休憩になる。
+      var resuming = store.isFinishedToday(Date.now());
+      askConfirm(resuming ? '勤務を再開しますか?(退勤からいままでは休憩になります)' : '出勤しますか?', function () {
         store.clockIn(Date.now());
         afterPunch();
       });

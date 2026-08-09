@@ -247,15 +247,40 @@
 
     // ------------------------------------------------------------- 打刻
 
-    /** 出勤。手動の打刻は自動モードより優先される。 */
+    /**
+     * 出勤。手動の打刻は自動モードより優先される。
+     *
+     * 1日の記録は「出勤1回・退勤1回」に揃える。すでに退勤済みの日にもう一度出勤した
+     * 場合は、新しい記録を作らずに **退勤から今までを休憩として** その日の勤務を再開する。
+     * フレックス(コアタイムなし)では日の途中の出入りは総労働時間に影響しないため、
+     * これで実態とも一致する。
+     */
     clockIn: function (nowMs) {
       var now = new Date(nowMs);
+      var todayKey = T.dateKey(now);
+      var entry = this.calendar[todayKey];
+
+      if (entry && entry.clockIn && entry.clockOut) {
+        this.state.clockInAt = entry.clockIn;
+        this.state.isLegalHoliday = !!entry.isLegalHoliday;
+        this.state.breaks = (entry.breaks || []).concat([{ start: entry.clockOut, end: nowMs }]);
+        delete this.calendar[todayKey];
+        this.saveCalendar();
+      } else {
+        this.state.clockInAt = nowMs;
+        this.state.isLegalHoliday = A.judgeLegalHoliday(now, this.settings, this.calendar);
+        this.state.breaks = [];
+      }
+
       this.state.status = 'working';
-      this.state.clockInAt = nowMs;
-      this.state.isLegalHoliday = A.judgeLegalHoliday(now, this.settings, this.calendar);
       this.state.overtimeFlag = false;
-      this.state.breaks = [];
       this.saveState();
+    },
+
+    /** その日はすでに退勤済みか(もう一度出勤すると「再開」になる) */
+    isFinishedToday: function (nowMs) {
+      var entry = this.calendar[T.dateKey(new Date(nowMs))];
+      return !!(entry && entry.clockIn && entry.clockOut);
     },
 
     /** 退勤。休憩を開けたままなら、その時点で閉じてから確定する。 */

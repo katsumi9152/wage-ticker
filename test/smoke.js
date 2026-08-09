@@ -267,6 +267,29 @@
     eq(order.join(','), '0,1,2,3,4,5,6', '選択肢の並びが日曜始まりになっていない');
   });
 
+  test('打刻: 同じ日に2回目の出勤は「再開」になり、記録は1日1組のまま', function () {
+    var todayKey = WT.time.dateKey(new Date());
+    var firstIn = S.calendar[todayKey].clockIn;
+    var firstOut = S.calendar[todayKey].clockOut;
+    var breaksBefore = (S.calendar[todayKey].breaks || []).length;
+
+    el('clockInBtn').fire('click');
+    eq(el('confirmText').textContent, '勤務を再開しますか?(退勤からいままでは休憩になります)');
+    confirmYes();
+    frame();
+
+    eq(S.state.status, 'working');
+    eq(S.state.clockInAt, firstIn, '出勤時刻は最初のままであるべき');
+    eq(S.state.breaks.length, breaksBefore + 1, '退勤〜再開が休憩になっていない');
+    eq(S.state.breaks[breaksBefore].start, firstOut, '休憩の開始が前回の退勤時刻になっていない');
+
+    el('clockOutBtn').fire('click');
+    confirmYes();
+    frame();
+    eq(punchCount(), 1, '1日に複数の記録を作ってはいけない');
+    eq(S.calendar[todayKey].clockIn, firstIn, '出勤時刻が書き換わっている');
+  });
+
   test('カレンダー: 当月ぶんのセルが描画される', function () {
     el('openCalendar').fire('click');
     var cells = el('calGrid').innerHTML.match(/cal-cell/g) || [];
