@@ -32,6 +32,15 @@
   --sans: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
+  /* 文字サイズは6段階に固定する。これ以外の値を新しく使わない。
+     hero(主役の金額)> xl(今日/今月)> lg(見出し)> md(本文)> sm(補足)> xs(注記) */
+  --fs-hero: clamp(38px, 12vw, 52px);
+  --fs-xl: clamp(22px, 7vw, 28px);
+  --fs-lg: 17px;
+  --fs-md: 14px;
+  --fs-sm: 12.5px;
+  --fs-xs: 11px;
+
   color-scheme: light;
 }
 
@@ -134,7 +143,7 @@ body { min-height: 100svh; }
   flex-wrap: wrap;
 }
 .brand-name {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
@@ -148,7 +157,7 @@ body { min-height: 100svh; }
   color: var(--muted);
   border-radius: 999px;
   padding: 4px 11px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -183,7 +192,7 @@ body { min-height: 100svh; }
   cursor: pointer;
   padding: 0;
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .icon-btn:active { background: var(--ground-2); }
 /* ボタンには「切り替えた先」のアイコンを出す(ライトのときは月) */
@@ -198,12 +207,26 @@ body { min-height: 100svh; }
 /* --------------------------------------------------------------- hero */
 
 .hero {
-  display: grid;
-  grid-template-columns: 1fr 74px;
-  gap: 10px;
-  padding: 18px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 16px 18px;
   /* 加算中の区分によって差し色が変わる(既定は所定内) */
   --tone: var(--cyan);
+}
+.hero-top {
+  display: grid;
+  grid-template-columns: 1fr 58px;
+  gap: 16px;
+  align-items: stretch;
+}
+.clock-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
 }
 .hero.tone-legalInsideOvertime { --tone: var(--blue); }
 .hero.tone-statutoryOvertime,
@@ -212,12 +235,10 @@ body { min-height: 100svh; }
 .hero.tone-legalHoliday { --tone: var(--pink); }
 .hero.tone-break { --tone: var(--faint); }
 
-.hero-main { min-width: 0; }
-
-/* 24時間の文字盤(0時が上・時計回り) */
+/* 24時間の二重文字盤(外側=午前 / 内側=午後。どちらも真上が起点) */
 .clock {
   position: relative;
-  width: min(230px, 92%);
+  width: min(216px, 100%);
   margin: 0 auto;
 }
 .clock svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -225,36 +246,41 @@ body { min-height: 100svh; }
 .clock-track {
   fill: none;
   stroke: var(--track);
-  stroke-width: 12;
+  stroke-width: 11;
 }
-.clock-planned {
+.clock-planned path {
   fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 30%, transparent);
-  stroke-width: 12;
-  stroke-linecap: butt;
+  stroke: color-mix(in srgb, var(--cyan) 32%, transparent);
+  stroke-width: 11;
 }
-.clock-break {
+.clock-break path {
   fill: none;
-  stroke: var(--faint);
-  stroke-width: 12;
-  stroke-linecap: butt;
-  opacity: 0.45;
+  stroke: color-mix(in srgb, var(--faint) 55%, transparent);
+  stroke-width: 11;
 }
-.clock-actual {
+.clock-actual path {
   fill: none;
   stroke: var(--tone);
-  stroke-width: 9;
+  stroke-width: 5;
   stroke-linecap: round;
   transition: stroke 1s ease;
 }
-.clock .ctick { stroke: var(--track); stroke-width: 1.6; }
-.clock .ctick.is-major { stroke: var(--faint); stroke-width: 2.4; }
+.clock .ctick { stroke: var(--track); stroke-width: 1.5; }
+.clock .ctick.is-major { stroke: var(--faint); stroke-width: 2.2; }
+.clock .clabel {
+  fill: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.clock .clabel--pm { font-size: 8px; opacity: 0.8; }
 .clock-hand {
   stroke: var(--ink);
-  stroke-width: 2.2;
+  stroke-width: 2.6;
   stroke-linecap: round;
 }
-.clock-hub { fill: var(--ink); }
+.clock-hub { fill: var(--faint); }
 
 .clock-center {
   position: absolute;
@@ -268,13 +294,13 @@ body { min-height: 100svh; }
   pointer-events: none;
 }
 .clock-value {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .clock-unit {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--faint);
   letter-spacing: 0.08em;
 }
@@ -282,7 +308,7 @@ body { min-height: 100svh; }
   margin-top: 8px;
   text-align: center;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--faint);
 }
 
@@ -295,7 +321,7 @@ body { min-height: 100svh; }
   white-space: nowrap;
 }
 .amount--main {
-  font-size: clamp(34px, 10.5vw, 46px);
+  font-size: var(--fs-hero);
   font-weight: 800;
   line-height: 1.1;
   color: var(--ink);
@@ -312,12 +338,12 @@ body { min-height: 100svh; }
   margin-top: 4px;
 }
 .hero-label {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   letter-spacing: 0.06em;
 }
 .hero-state {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--tone);
@@ -325,102 +351,100 @@ body { min-height: 100svh; }
 .hero-meta {
   margin-top: 6px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--faint);
 }
 
-/* 縦バー(今月の実働と総枠) */
-.vbar {
+/* 今月と先月(同じ経過日数時点)を並べた棒グラフ。青い線が基本給。 */
+.vchart { display: flex; align-items: stretch; }
+.vchart-plot {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.vbar-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 2px 0 4px;
+  flex: 1;
 }
 .vbar-track {
   position: relative;
   flex: 1;
-  width: 34px;
+  width: 100%;
   min-height: 150px;
-  border: 2px solid var(--line);
-  border-radius: 999px;
+  border-bottom: 1.5px solid var(--line);
   background: var(--card-2);
+  border-radius: 3px 3px 0 0;
   overflow: hidden;
 }
 .vbar-fill {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 0;
-  background: linear-gradient(180deg, var(--cyan), color-mix(in srgb, var(--cyan) 55%, var(--blue)));
-  border-radius: 999px;
+  background: var(--cyan);
+  border-radius: 3px 3px 0 0;
   transition: height 0.6s ease, background 0.8s ease;
 }
-/* 基本給を超えたら暖色に、先月も超えたら緑に(超えたことが色で分かる) */
-.vbar.over-base .vbar-fill { background: linear-gradient(180deg, var(--amber), var(--cyan)); }
-.vbar.over-prev .vbar-fill { background: linear-gradient(180deg, var(--green), var(--amber)); }
+.vbar-fill.is-prev { background: var(--faint); opacity: 0.55; }
+/* 基本給を超えたら暖色になる(超えたことが色で分かる) */
+.vchart.over-base .vbar-fill:not(.is-prev) { background: var(--amber); }
 
-.vbar-marks { position: absolute; inset: 0; pointer-events: none; }
+.vbar-marks { position: absolute; inset: 0 0 22px; pointer-events: none; }
 .vbar-mark {
   position: absolute;
   left: 0; right: 0;
-  height: 2px;
+  height: 0;
+  border-top: 1.5px dashed var(--blue);
 }
-/* 青 = 基本給のライン / 赤 = 先月の合計 */
-.vbar-mark.is-base { background: var(--blue); }
-.vbar-mark.is-prev { background: var(--red); }
 
 .vbar-cap {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--faint);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  height: 16px;
 }
 
 /* -------------------------------------------------------------- stats */
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .stat {
-  padding: 14px 10px 12px;
+  padding: 14px 16px 13px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  text-align: center;
+  gap: 3px;
   min-width: 0;
 }
-.stat-icon {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  border: 1.6px solid currentColor;
-  display: grid;
-  place-items: center;
-  margin-bottom: 6px;
-}
-.stat-icon--cyan { color: var(--cyan); }
-.stat-icon--amber { color: var(--amber); }
-.stat-icon--green { color: var(--green); }
-
-.amount--sub {
-  font-size: clamp(17px, 5vw, 21px);
-  font-weight: 800;
-  color: var(--ink);
-  line-height: 1.2;
-}
 .stat-label {
-  font-size: 11px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.06em;
-  margin-top: 2px;
+}
+.amount--sub {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.15;
 }
 .stat-sub {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+.diff { font-weight: 700; }
 .diff.is-plus { color: var(--green); }
 .diff.is-minus { color: var(--muted); }
 
@@ -430,7 +454,7 @@ body { min-height: 100svh; }
 .details > summary {
   list-style: none;
   padding: 15px 16px;
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--muted);
   cursor: pointer;
@@ -447,7 +471,7 @@ body { min-height: 100svh; }
 .sec:first-child { margin-top: 0; }
 .sec h3 {
   margin: 0 0 8px;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.1em;
   color: var(--faint);
   font-weight: 800;
@@ -457,7 +481,7 @@ body { min-height: 100svh; }
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   padding: 7px 0;
   border-bottom: 1px solid var(--line);
 }
@@ -468,7 +492,7 @@ body { min-height: 100svh; }
 
 .formula {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 2.1;
   color: var(--muted);
   background: var(--card-2);
@@ -482,7 +506,7 @@ body { min-height: 100svh; }
 .formula b.money { color: var(--cyan); }
 
 .note-line {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   line-height: 1.8;
   margin: 8px 0 0;
@@ -500,7 +524,7 @@ body { min-height: 100svh; }
 
 .disclaimer {
   margin: 2px 4px 0;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   line-height: 1.75;
   color: var(--faint);
 }
@@ -534,7 +558,7 @@ body { min-height: 100svh; }
   align-items: center;
   gap: 3px;
   font-family: var(--sans);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -545,8 +569,10 @@ body { min-height: 100svh; }
 .act[hidden] { display: none; }
 .act--in { color: var(--green); }
 .act--out { color: var(--blue); }
+.act--break { color: var(--muted); }
+.act--break.is-on { color: var(--amber); }
 .act--ot { color: var(--amber); }
-.act--in, .act--out, .act--ot { flex: 1.25 1 0; font-size: 12.5px; }
+.act--in, .act--out, .act--ot, .act--break { flex: 1.15 1 0; }
 .act[disabled] { color: var(--faint); opacity: 0.4; cursor: default; }
 .act-sep { width: 1px; background: var(--line); margin: 6px 4px; flex: none; }
 
@@ -577,7 +603,7 @@ dialog.sheet--narrow { max-height: 88svh; }
   background: var(--card);
   z-index: 2;
 }
-.sheet-head h2 { margin: 0; font-size: 17px; font-weight: 800; }
+.sheet-head h2 { margin: 0; font-size: var(--fs-lg); font-weight: 800; }
 
 .sheet-body {
   padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
@@ -596,7 +622,7 @@ dialog.sheet--narrow { max-height: 88svh; }
 }
 .derived-value {
   display: block;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--cyan);
   font-variant-numeric: tabular-nums;
@@ -604,7 +630,7 @@ dialog.sheet--narrow { max-height: 88svh; }
 
 .field-label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--muted);
   margin-bottom: 8px;
@@ -635,7 +661,7 @@ input:disabled, select:disabled { opacity: 0.45; }
 .hint {
   display: block;
   margin-top: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 1.75;
   color: var(--faint);
 }
@@ -645,21 +671,44 @@ input:disabled, select:disabled { opacity: 0.45; }
   align-items: center;
   gap: 10px;
   margin-top: 10px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--ink-2);
 }
 .check input { width: 22px; height: 22px; accent-color: var(--cyan); }
 
-.first-run {
-  font-size: 13.5px;
+/* 保存できなかった理由 */
+.form-msg {
+  font-size: var(--fs-md);
+  font-weight: 700;
   line-height: 1.8;
-  color: var(--ink-2);
-  background: color-mix(in srgb, var(--cyan) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin: 0 0 18px;
 }
+.form-msg[hidden] { display: none; }
+
+/* 打刻の確認 */
+dialog.confirm {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 22px 20px 18px;
+  width: min(340px, calc(100% - 40px));
+  box-shadow: 0 20px 50px rgba(6, 11, 20, 0.28);
+}
+dialog.confirm::backdrop { background: rgba(6, 11, 20, 0.5); }
+.confirm-text {
+  margin: 0 0 20px;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  text-align: center;
+}
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .btn { flex: 1; padding: 14px 10px; font-size: 15px; }
 
 .weekday-picker { display: flex; gap: 6px; }
 .weekday-picker button {
@@ -688,7 +737,7 @@ input:disabled, select:disabled { opacity: 0.45; }
   color: var(--muted);
   border-radius: 11px;
   padding: 12px 14px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   cursor: pointer;
   flex: 1 0 auto;
@@ -702,8 +751,8 @@ input:disabled, select:disabled { opacity: 0.45; }
   padding: 12px 14px;
   margin-bottom: 14px;
 }
-.note > summary { font-size: 13.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
-.note p, .note li { font-size: 12.5px; line-height: 1.8; color: var(--faint); }
+.note > summary { font-size: var(--fs-md); font-weight: 700; color: var(--muted); cursor: pointer; }
+.note p, .note li { font-size: var(--fs-sm); line-height: 1.8; color: var(--faint); }
 .note ul { padding-left: 20px; margin: 10px 0; }
 
 .sheet-actions {
@@ -726,7 +775,7 @@ input:disabled, select:disabled { opacity: 0.45; }
   cursor: pointer;
 }
 .btn--in { flex: 1; background: var(--cyan); border-color: var(--cyan); color: #fff; }
-.btn--ghost { color: var(--muted); font-weight: 700; font-size: 14px; }
+.btn--ghost { color: var(--muted); font-weight: 700; font-size: var(--fs-md); }
 .btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
 
 /* ---------------------------------------------------------- calendar */
@@ -745,7 +794,7 @@ input:disabled, select:disabled { opacity: 0.45; }
 
 .cal-head-cell {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--faint);
   padding: 5px 0;
@@ -763,7 +812,7 @@ input:disabled, select:disabled { opacity: 0.45; }
   align-items: center;
   justify-content: center;
   gap: 3px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -784,7 +833,7 @@ input:disabled, select:disabled { opacity: 0.45; }
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 14px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -796,7 +845,7 @@ input:disabled, select:disabled { opacity: 0.45; }
 .sw--auto { background: var(--amber); }
 
 @media (max-width: 360px) {
-  .stat-label { font-size: 10px; }
+  .stat-label { font-size: var(--fs-xs); }
   .hero { grid-template-columns: 1fr 62px; }
 }
 

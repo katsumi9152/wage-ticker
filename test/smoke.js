@@ -53,21 +53,28 @@
     eq(localStorage.getItem('wageTheme'), 'light', '選んだテーマが保存される');
   });
 
-  test('時計ゲージ: 文字盤・予定・休憩・針が描かれる', function () {
+  test('時計: 外側=午前 / 内側=午後の二重文字盤が描かれる', function () {
     frame();
-    eq((el('clockTicks').innerHTML.match(/<line/g) || []).length, 24, '24時間ぶんの目盛りが無い');
-    ok(el('clockPlanned').getAttribute('d').indexOf('M') === 0, '予定の勤務帯が描かれていない');
-    ok(el('clockBreak').getAttribute('d').indexOf('M') === 0, '休憩帯が描かれていない');
-    ok(el('clockHand').getAttribute('x2') !== null, '現在時刻の針が無い');
+    eq((el('clockTicks').innerHTML.match(/<line/g) || []).length, 24, '2つの輪の目盛り(12×2)が無い');
+    eq((el('clockLabels').innerHTML.match(/<text/g) || []).length, 8, '時刻の数字が足りない');
+    ok(el('clockPlanned').innerHTML.indexOf('<path') >= 0, '予定の勤務帯が描かれていない');
+    ok(el('clockBreak').innerHTML.indexOf('<path') >= 0, '昼休憩が描かれていない');
+    ok(el('clockHand').getAttribute('x2') !== null, '現在時刻の印が無い');
     ok(el('clockValue').textContent.indexOf(':') > 0, '中央に実働時間が出ていない');
     ok(el('clockCap').textContent.indexOf('予定') === 0, '予定の時刻が添えられていない');
-    ok(el('clockCap').textContent.indexOf('休憩') > 0);
   });
 
-  test('今月バー: 青が基本給ライン、赤が先月の合計', function () {
-    frame();
-    ok(String(el('monthBarFill').style.height).indexOf('%') > 0, '今月バーが伸びていない');
-    ok(el('monthBarMarks').innerHTML.indexOf('is-base') >= 0, '基本給ラインが無い');
+  test('時計: 昼をまたぐ予定は午前と午後の両方の輪に分かれる', function () {
+    // 9:00〜17:30 は 12:00 をまたぐので、2本の弧になる
+    eq((el('clockPlanned').innerHTML.match(/<path/g) || []).length, 2, '午前と午後に分かれていない');
+  });
+
+  test('棒グラフ: 今月と先月を並べ、基本給のラインを引く', function () {
+    S.settings.monthlyBaseSalary = 300000;
+    refresh();
+    ok(String(el('monthBarFill').style.height).indexOf('%') > 0, '今月の棒が伸びていない');
+    ok(String(el('prevBarFill').style.height).indexOf('%') > 0, '先月の棒が描かれていない');
+    ok(el('monthBarMarks').innerHTML.indexOf('is-base') >= 0, '基本給のラインが無い');
   });
 
   test('金額はぼかさずそのまま表示される', function () {
@@ -93,16 +100,57 @@
 
   // ------------------------------------------------------ 手動モード
 
-  test('手動: 出勤を押すと勤務中になる', function () {
+  /** 確認ダイアログの「はい」を押す */
+  function confirmYes() { el('confirmYes').fire('click'); }
+
+  test('打刻: 出勤は確認してから記録される', function () {
     S.settings.monthlyBaseSalary = 300000;
     S.state.configured = true;
     refresh();
+
     el('clockInBtn').fire('click');
+    eq(S.state.status, 'off', '確認する前に打刻してはいけない');
+    eq(el('confirmText').textContent, '出勤しますか?');
+
+    confirmYes();
     frame();
     eq(S.state.status, 'working');
     eq(el('statusText').textContent, '勤務中');
-    ok(el('clockInBtn').disabled === true, '出勤ボタンは押せない状態になる');
+    ok(el('clockInBtn').disabled === true, '出勤したら出勤ボタンは押せない');
     ok(el('clockOutBtn').disabled === false, '退勤ボタンが押せる状態になる');
+  });
+
+  test('打刻: 確認をキャンセルすると何も起きない', function () {
+    el('breakBtn').fire('click');
+    eq(el('confirmText').textContent, '休憩を開始しますか?');
+    el('confirmNo').fire('click');
+    ok(!S.isOnManualBreak(), 'キャンセルしたのに休憩が始まっている');
+  });
+
+  test('打刻: 休憩は何度でも記録でき、そのあいだカウンターが止まる', function () {
+    el('breakBtn').fire('click');
+    confirmYes();
+    frame();
+    ok(S.isOnManualBreak(), '休憩が始まっていない');
+    eq(el('statusText').textContent, '休憩中');
+    eq(el('breakBtn').textContent, '休憩終了');
+
+    var stopped = el('liveInt').textContent;
+    frame();
+    eq(el('liveInt').textContent, stopped, '休憩中なのに金額が増えている');
+
+    el('breakBtn').fire('click');
+    confirmYes();
+    frame();
+    ok(!S.isOnManualBreak(), '休憩が終わっていない');
+    eq(el('breakBtn').textContent, '休憩開始');
+
+    // 2回目の休憩も記録できる
+    el('breakBtn').fire('click');
+    confirmYes();
+    el('breakBtn').fire('click');
+    confirmYes();
+    eq(S.state.breaks.length, 2, '休憩は何度でも記録できる');
   });
 
   test('手動: メイン数値・今日・今月が描画される', function () {
@@ -131,12 +179,18 @@
     }
   });
 
-  test('手動: 退勤するとカレンダーに打刻が保存される', function () {
+  test('打刻: 退勤するとカレンダーに休憩ごと保存される', function () {
     el('clockOutBtn').fire('click');
+    eq(S.state.status, 'working', '確認する前に退勤してはいけない');
+    confirmYes();
     frame();
     eq(S.state.status, 'off');
     eq(punchCount(), 1, '打刻が保存されていない');
     ok(S.state.lastClockOutAt > 0, '前回退勤時刻が記録されていない');
+    var todayKey = WT.time.dateKey(new Date());
+    ok((S.calendar[todayKey].breaks || []).length === 2, '休憩が記録に残っていない');
+    ok(el('clockInBtn').disabled === false, '退勤したら出勤できる');
+    ok(el('breakBtn').disabled === true, '出勤していないときは休憩を押せない');
   });
 
   test('設定: 基本給以外はプルダウンから選ぶ', function () {
@@ -259,21 +313,43 @@
     S.state.autoDayKey = null;
     refresh();
     eq(el('statusText').textContent, '自動計測中');
-    ok(el('clockInBtn').hidden === true, '自動モードでは出勤ボタンを消す');
-    ok(el('clockOutBtn').hidden === true, '自動モードでは退勤ボタンを消す');
+    ok(el('clockInBtn').hidden === false, '自動モードでも手動の打刻は使えるようにする');
+    ok(el('clockOutBtn').hidden === false);
     ok(el('overtimeBtn').hidden === false, '残業ボタンが出ていない');
     eq(el('overtimeBtn').textContent, '残業開始');
   });
 
   test('SPEC 5.3: 残業開始 → 残業終了で確定する', function () {
     el('overtimeBtn').fire('click');
+    confirmYes();
     frame();
     eq(S.state.overtimeFlag, true, '残業フラグが立っていない');
     eq(el('overtimeBtn').textContent, '残業終了');
     el('overtimeBtn').fire('click');
+    confirmYes();
     frame();
     eq(S.state.overtimeFlag, false);
     eq(punchCount(), 1, '残業終了で打刻が確定していない');
+  });
+
+  test('手動の打刻は自動モードより優先される', function () {
+    S.calendar = {};
+    S.state.autoDayKey = null;
+    S.state.overtimeFlag = false;
+    refresh();
+    el('clockInBtn').fire('click');
+    confirmYes();
+    frame();
+    eq(S.state.status, 'working', '自動モードでも出勤できる');
+    eq(el('statusText').textContent, '勤務中', '自動計測ではなく手動の勤務として扱う');
+    ok(el('overtimeBtn').hidden === true, '手動で出勤したら残業ボタンは出さない');
+    el('clockOutBtn').fire('click');
+    confirmYes();
+    frame();
+    eq(S.state.status, 'off');
+    S.calendar = {};
+    S.state.autoDayKey = null;
+    refresh();
   });
 
   test('SPEC 5.3: 残業開始を押さないまま退勤予定時刻を過ぎたら自動確定', function () {

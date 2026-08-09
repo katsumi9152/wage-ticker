@@ -96,12 +96,11 @@
 
   // -------------------------------------------------------- 時計ゲージ
 
-  var CLOCK = { cx: 100, cy: 100, rPlan: 78, rActual: 63 };
-
-  /** 0時を上として時計回りに角度を出す(24時間で1周) */
-  function clockAngle(minutesOfDay) {
-    return (minutesOfDay / 1440) * 360;
-  }
+  /**
+   * 24時間を二重の文字盤で表す。外側の輪が午前(0:00〜12:00)、内側の輪が午後(12:00〜24:00)。
+   * どちらの輪も12時間で1周し、真上が起点(0時 / 12時)。
+   */
+  var CLOCK = { cx: 100, cy: 100, rAm: 76, rPm: 54 };
 
   function polar(r, deg) {
     var rad = ((deg - 90) * Math.PI) / 180;
@@ -110,7 +109,7 @@
 
   /** 円弧のパス。sweep は時計回りの角度。 */
   function arcPath(r, startDeg, sweepDeg) {
-    if (!(sweepDeg > 0)) return '';
+    if (!(sweepDeg > 0.01)) return '';
     if (sweepDeg > 359.9) sweepDeg = 359.9;
     var s = polar(r, startDeg);
     var e = polar(r, startDeg + sweepDeg);
@@ -118,20 +117,73 @@
       ' A' + r + ' ' + r + ' 0 ' + (sweepDeg > 180 ? 1 : 0) + ' 1 ' + e.x.toFixed(2) + ' ' + e.y.toFixed(2);
   }
 
-  /** 文字盤(1時間ごとの目盛り)を1度だけ組み立てる */
+  /** その時刻がどちらの輪に乗るか */
+  function ringRadius(minutesOfDay) {
+    return ((minutesOfDay % 1440) + 1440) % 1440 < 720 ? CLOCK.rAm : CLOCK.rPm;
+  }
+
+  function ringAngle(minutesOfDay) {
+    var m = ((minutesOfDay % 1440) + 1440) % 1440;
+    return ((m % 720) / 720) * 360;
+  }
+
+  /** 時間帯を、午前の輪と午後の輪に切り分けて円弧にする */
+  function ringArcs(startMin, spanMin) {
+    var out = [];
+    var cur = ((startMin % 1440) + 1440) % 1440;
+    var remain = spanMin;
+    var guard = 0;
+    while (remain > 0.01 && guard++ < 8) {
+      var base = cur < 720 ? 0 : 720;
+      var take = Math.min(remain, base + 720 - cur);
+      out.push({ r: cur < 720 ? CLOCK.rAm : CLOCK.rPm, start: ((cur - base) / 720) * 360, sweep: (take / 720) * 360 });
+      cur = (cur + take) % 1440;
+      remain -= take;
+    }
+    return out;
+  }
+
+  function arcsHtml(startMin, spanMin) {
+    var arcs = ringArcs(startMin, spanMin);
+    var html = '';
+    for (var i = 0; i < arcs.length; i++) {
+      var d = arcPath(arcs[i].r, arcs[i].start, arcs[i].sweep);
+      if (d) html += '<path d="' + d + '"/>';
+    }
+    return html;
+  }
+
+  /** 文字盤(1時間ごとの目盛りと時刻)を1度だけ組み立てる */
   function buildGauge() {
     var g = $('clockTicks');
     if (!g) return;
-    var html = '';
-    for (var h = 0; h < 24; h++) {
-      var deg = clockAngle(h * 60);
-      var major = h % 6 === 0;
-      var a = polar(major ? 86 : 89, deg);
-      var b = polar(95, deg);
-      html += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) +
-        '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
+    var ticks = '';
+    for (var h = 0; h < 12; h++) {
+      var deg = (h / 12) * 360;
+      var major = h % 3 === 0;
+      // 外側=午前
+      var a1 = polar(major ? 82 : 84, deg);
+      var b1 = polar(88, deg);
+      ticks += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a1.x.toFixed(1) + '" y1="' + a1.y.toFixed(1) +
+        '" x2="' + b1.x.toFixed(1) + '" y2="' + b1.y.toFixed(1) + '"/>';
+      // 内側=午後
+      var a2 = polar(major ? 61 : 63, deg);
+      var b2 = polar(67, deg);
+      ticks += '<line class="ctick' + (major ? ' is-major' : '') + '" x1="' + a2.x.toFixed(1) + '" y1="' + a2.y.toFixed(1) +
+        '" x2="' + b2.x.toFixed(1) + '" y2="' + b2.y.toFixed(1) + '"/>';
     }
-    g.innerHTML = html;
+    g.innerHTML = ticks;
+
+    var labels = '';
+    var hours = [0, 3, 6, 9];
+    for (var i = 0; i < hours.length; i++) {
+      var deg2 = (hours[i] / 12) * 360;
+      var p = polar(96, deg2);
+      labels += '<text class="clabel" x="' + p.x.toFixed(1) + '" y="' + (p.y + 3.2).toFixed(1) + '">' + hours[i] + '</text>';
+      var q = polar(45, deg2);
+      labels += '<text class="clabel clabel--pm" x="' + q.x.toFixed(1) + '" y="' + (q.y + 3).toFixed(1) + '">' + (hours[i] + 12) + '</text>';
+    }
+    $('clockLabels').innerHTML = labels;
   }
 
   function minutesOfDayOf(ms) {
@@ -150,32 +202,28 @@
     var bStart = T.parseTimeToMinutes(brk.start);
     var bEnd = T.parseTimeToMinutes(brk.end);
 
-    if (startMin !== null && endMin !== null) {
-      var span = (endMin - startMin + 1440) % 1440 || 1440;
-      $('clockPlanned').setAttribute('d', arcPath(CLOCK.rPlan, clockAngle(startMin), clockAngle(span)));
-    } else {
-      $('clockPlanned').setAttribute('d', '');
-    }
+    $('clockPlanned').innerHTML = (startMin !== null && endMin !== null)
+      ? arcsHtml(startMin, (endMin - startMin + 1440) % 1440 || 1440)
+      : '';
 
-    if (bStart !== null && bEnd !== null && bStart !== bEnd) {
-      var bSpan = (bEnd - bStart + 1440) % 1440;
-      $('clockBreak').setAttribute('d', arcPath(CLOCK.rPlan, clockAngle(bStart), clockAngle(bSpan)));
-    } else {
-      $('clockBreak').setAttribute('d', '');
-    }
+    $('clockBreak').innerHTML = (bStart !== null && bEnd !== null && bStart !== bEnd)
+      ? arcsHtml(bStart, (bEnd - bStart + 1440) % 1440)
+      : '';
 
     if (actual && actual.startMs) {
       var from = minutesOfDayOf(actual.startMs);
       var to = minutesOfDayOf(actual.endMs || nowMs);
-      var aSpan = (to - from + 1440) % 1440;
-      $('clockActual').setAttribute('d', arcPath(CLOCK.rActual, clockAngle(from), clockAngle(aSpan)));
+      $('clockActual').innerHTML = arcsHtml(from, (to - from + 1440) % 1440);
     } else {
-      $('clockActual').setAttribute('d', '');
+      $('clockActual').innerHTML = '';
     }
 
-    var handDeg = clockAngle(minutesOfDayOf(nowMs));
-    var tip = polar(72, handDeg);
-    var tail = polar(-10, handDeg);
+    // 現在時刻は、その時刻が乗っている輪の上に印を置く
+    var nowMin = minutesOfDayOf(nowMs);
+    var r = ringRadius(nowMin);
+    var deg = ringAngle(nowMin);
+    var tip = polar(r + 9, deg);
+    var tail = polar(r - 9, deg);
     var hand = $('clockHand');
     hand.setAttribute('x1', tail.x.toFixed(1));
     hand.setAttribute('y1', tail.y.toFixed(1));
@@ -190,29 +238,32 @@
   }
 
   /**
-   * 今月の金額を縦バーで示す。
-   * 青 = 基本給のライン、赤 = 先月の合計。どちらを超えたかが一目で分かる。
+   * 今月と先月(同じ経過日数時点)の金額を並べた棒グラフ。
+   * 青い破線は基本給のライン。超えていれば残業代の領域に入っている。
    */
   function renderMonthBar(monthAmount, baseSalary, prevAmount) {
-    var max = Math.max(baseSalary * 1.3, monthAmount * 1.05, prevAmount * 1.15, 1);
+    var max = Math.max(baseSalary * 1.15, monthAmount * 1.08, prevAmount * 1.08, 1);
     $('monthBarFill').style.height = ((monthAmount / max) * 100).toFixed(1) + '%';
-    var html = '<i class="vbar-mark is-base" style="bottom:' + ((baseSalary / max) * 100).toFixed(1) + '%"></i>';
-    if (prevAmount > 0) {
-      html += '<i class="vbar-mark is-prev" style="bottom:' + ((prevAmount / max) * 100).toFixed(1) + '%"></i>';
-    }
-    $('monthBarMarks').innerHTML = html;
-    var bar = $('monthBar');
-    bar.classList.toggle('over-base', monthAmount > baseSalary);
-    bar.classList.toggle('over-prev', prevAmount > 0 && monthAmount > prevAmount);
+    $('prevBarFill').style.height = ((prevAmount / max) * 100).toFixed(1) + '%';
+    $('monthBarMarks').innerHTML = baseSalary > 0
+      ? '<i class="vbar-mark is-base" style="bottom:' + ((baseSalary / max) * 100).toFixed(1) + '%"></i>'
+      : '';
+    $('monthBar').classList.toggle('over-base', monthAmount > baseSalary && baseSalary > 0);
   }
 
   // ------------------------------------------------------------ 集計処理
 
+  /** 手動の打刻を最優先に見る。押していなければ自動モードの予定を使う。 */
   function activeSessionOf(settings, autoInfo) {
-    if (settings.autoMode) return autoInfo.active;
     if (store.state.status === 'working' && store.state.clockInAt) {
-      return { startMs: store.state.clockInAt, isLegalHoliday: !!store.state.isLegalHoliday };
+      return {
+        startMs: store.state.clockInAt,
+        isLegalHoliday: !!store.state.isLegalHoliday,
+        breaks: store.state.breaks || [],
+        manual: true,
+      };
     }
+    if (settings.autoMode) return autoInfo.active;
     return null;
   }
 
@@ -316,17 +367,16 @@
       : null;
     if (cmp) {
       diffEl.hidden = false;
-      diffEl.textContent = fmtSignedYen(cmp.amountDiff);
+      diffEl.textContent = '先月比 ' + fmtSignedYen(cmp.amountDiff);
       diffEl.classList.toggle('is-plus', cmp.amountDiff >= 0);
       diffEl.classList.toggle('is-minus', cmp.amountDiff < 0);
-      $('monthDiffSub').textContent = cmp.elapsedDays + '日目 / ' + fmtSignedMinutes(cmp.minutesDiff);
     } else {
       diffEl.hidden = true;
-      $('monthDiffSub').textContent = '先月の記録がたまると出ます';
     }
 
     renderClock(ctx.settings, Date.now(), todayActualSpan(), todayTotal.workedMinutes);
-    renderMonthBar(monthTotal.amount, Number(ctx.settings.monthlyBaseSalary || 0), ctx.prevTotalAmount || 0);
+    // 棒グラフの「先月」は、同じ経過日数時点までの金額(月途中でも公平に比べられる)
+    renderMonthBar(monthTotal.amount, Number(ctx.settings.monthlyBaseSalary || 0), cmp ? cmp.baseAmount : 0);
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
@@ -351,35 +401,49 @@
     if (!store.state.configured) text = '未設定';
     else if (!working) text = '待機中';
     else if (live && live.onBreak) text = '休憩中';
+    else if (ctx.active.manual) text = '勤務中'; // 手動の打刻が優先されている
     else text = ctx.settings.autoMode ? '自動計測中' : '勤務中';
     $('statusText').textContent = text;
     $('detailsPanel').classList.toggle('is-working', working);
   }
 
+  /**
+   * ボタンの出し分け。手動の打刻は自動モードより優先するので、
+   * 出勤 / 退勤 / 休憩は常に置いておく。
+   */
   function renderActions() {
-    var auto = ctx.settings.autoMode;
     var inBtn = $('clockInBtn');
     var outBtn = $('clockOutBtn');
+    var brkBtn = $('breakBtn');
     var otBtn = $('overtimeBtn');
 
-    inBtn.hidden = auto;
-    outBtn.hidden = auto;
-    otBtn.hidden = !auto;
+    var working = store.state.status === 'working';
+    var onManualBreak = store.isOnManualBreak();
+    var onLunch = isLunchNow();
 
-    if (!auto) {
-      var working = store.state.status === 'working';
-      inBtn.disabled = working;
-      outBtn.disabled = !working;
-      return;
-    }
+    inBtn.hidden = false;
+    outBtn.hidden = false;
+    brkBtn.hidden = false;
 
-    // 自動モード: 勤務時間中だけ「残業開始」、押した後は「残業終了」(SPEC 5.3)
-    if (!ctx.active) {
-      otBtn.hidden = true;
-      return;
-    }
-    otBtn.hidden = false;
-    setActLabel(otBtn, store.state.overtimeFlag ? '残業終了' : '残業開始');
+    inBtn.disabled = working;              // 出勤したら退勤しか押せない
+    outBtn.disabled = !working;
+    // 昼休憩の最中は、手動の休憩を押せない(二重に休むことになるため)
+    brkBtn.disabled = !working || onLunch;
+    setActLabel(brkBtn, onManualBreak ? '休憩終了' : '休憩開始');
+    brkBtn.classList.toggle('is-on', onManualBreak);
+
+    // 自動モードで、手動の打刻がない日だけ「残業開始 / 終了」を出す(SPEC 5.3)
+    var autoActive = ctx.settings.autoMode && !working && ctx.active && !ctx.active.manual;
+    otBtn.hidden = !autoActive;
+    if (autoActive) setActLabel(otBtn, store.state.overtimeFlag ? '残業終了' : '残業開始');
+  }
+
+  /** いま設定された昼休憩の時間帯の中か */
+  function isLunchNow() {
+    var w = ctx.settings.breakWindow;
+    if (!w) return false;
+    var now = Date.now();
+    return W.isOnBreakAt(now, now - T.MS_PER_DAY, w);
   }
 
   /** ボタンはアイコン + ラベルなので、ラベルの span だけを書き換える */
@@ -603,39 +667,95 @@
 
   // ------------------------------------------------------------ 打刻操作
 
+  /** 打刻の前にひとこと確認する(押し間違いを防ぐ) */
+  var pendingConfirm = null;
+
+  function askConfirm(message, onYes) {
+    pendingConfirm = onYes;
+    $('confirmText').textContent = message;
+    var dlg = $('confirmDialog');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function initConfirm() {
+    $('confirmYes').addEventListener('click', function () {
+      var fn = pendingConfirm;
+      pendingConfirm = null;
+      $('confirmDialog').close();
+      if (fn) fn();
+    });
+    $('confirmNo').addEventListener('click', function () {
+      pendingConfirm = null;
+      $('confirmDialog').close();
+    });
+  }
+
+  function afterPunch() {
+    lastLogSavedAt = 0;
+    heavy();
+  }
+
   function initActions() {
     $('clockInBtn').addEventListener('click', function () {
       if (!requireSetup()) return;
-      store.clockIn(Date.now());
-      lastLogSavedAt = 0;
-      heavy();
+      askConfirm('出勤しますか?', function () {
+        store.clockIn(Date.now());
+        afterPunch();
+      });
     });
+
     $('clockOutBtn').addEventListener('click', function () {
-      store.clockOut(Date.now());
-      lastLogSavedAt = 0;
-      heavy();
+      askConfirm('退勤しますか?', function () {
+        store.clockOut(Date.now());
+        afterPunch();
+      });
     });
+
+    $('breakBtn').addEventListener('click', function () {
+      if (store.isOnManualBreak()) {
+        askConfirm('休憩を終了しますか?', function () {
+          store.endBreak(Date.now());
+          afterPunch();
+        });
+      } else {
+        askConfirm('休憩を開始しますか?', function () {
+          store.startBreak(Date.now());
+          afterPunch();
+        });
+      }
+    });
+
     $('overtimeBtn').addEventListener('click', function () {
       if (!ctx || !ctx.active) return;
       if (!store.state.overtimeFlag) {
-        // 退勤予定時刻での自動確定を無効化するフラグを立てるだけ(SPEC 14)
-        store.state.overtimeFlag = true;
-        store.saveState();
+        askConfirm('残業を始めますか?(退勤予定時刻での自動確定を止めます)', function () {
+          // 退勤予定時刻での自動確定を無効化するフラグを立てるだけ(SPEC 14)
+          store.state.overtimeFlag = true;
+          store.saveState();
+          afterPunch();
+        });
       } else {
-        store.commitSession(ctx.active.startMs, Date.now(), ctx.active.isLegalHoliday);
-        store.state.overtimeFlag = false;
-        store.state.lastClockOutAt = Date.now();
-        store.saveState();
+        askConfirm('残業を終了しますか?', function () {
+          var now = Date.now();
+          store.endBreak(now);
+          store.commitSession(ctx.active.startMs, now, ctx.active.isLegalHoliday, store.state.breaks);
+          store.state.overtimeFlag = false;
+          store.state.lastClockOutAt = now;
+          store.state.breaks = [];
+          store.saveState();
+          afterPunch();
+        });
       }
-      lastLogSavedAt = 0;
-      heavy();
     });
+
     $('detailsPanel').addEventListener('toggle', function () { renderStatic(); });
   }
 
+  /** 基本給が未登録なら設定画面へ誘導する(なぜ開いたのかを必ず伝える) */
   function requireSetup() {
     if (store.state.configured && store.settings.monthlyBaseSalary) return true;
     openSettings(true);
+    flashHint('先に基本給を入力して「保存」を押してください。');
     return false;
   }
 
@@ -765,9 +885,10 @@
     var dlg = $('settingsDialog');
     if (dlg.open) return;
     var s = store.settings;
-    $('firstRunNote').textContent = FIRST_RUN_TEXT;
-    $('firstRunNote').hidden = !firstRun && store.state.configured;
-    $('settingsTitle').textContent = store.state.configured ? '設定' : 'はじめの設定';
+    // 初回も2回目以降も同じ画面。メッセージ欄は入力に不備があるときだけ使う。
+    $('firstRunNote').hidden = true;
+    $('firstRunNote').textContent = '';
+    $('settingsTitle').textContent = '設定';
     $('setSalary').value = s.monthlyBaseSalary == null ? '' : String(s.monthlyBaseSalary);
     $('setSalary').type = 'password';
     $('salaryEye').textContent = '表示';
@@ -793,8 +914,6 @@
     refreshDailyHours();
     dlg.showModal();
   }
-
-  var FIRST_RUN_TEXT = 'はじめに、基本給と働き方を登録してください。データはこの端末のブラウザ内にのみ保存されます。';
 
   function saveSettingsFromForm() {
     var salary = Number(String($('setSalary').value).replace(/[^\d.]/g, ''));
@@ -830,11 +949,12 @@
     heavy();
   }
 
+  /** 保存できなかった理由を、フォームの一番上に出す */
   function flashHint(msg) {
     var note = $('firstRunNote');
     note.hidden = false;
     note.textContent = msg;
-    note.scrollIntoView({ block: 'nearest' });
+    if (note.scrollIntoView) note.scrollIntoView({ block: 'start' });
   }
 
   // ---------------------------------------------------------- カレンダー
@@ -1021,6 +1141,7 @@
     store.load();
     initTheme();
     buildGauge();
+    initConfirm();
     initActions();
     initSettings();
     initCalendar();

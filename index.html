@@ -18,6 +18,12 @@
       <span class="brand-name">WageTicker</span>
       <span class="pill" id="statusBadge"><span class="dot"></span><span id="statusText">待機中</span></span>
     </div>
+    <button class="icon-btn" id="openCalendar" type="button" aria-label="カレンダー">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.8" y="5.2" width="16.4" height="15" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn" id="openSettings" type="button" aria-label="設定">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v2.2M12 18.6v2.2M3.2 12h2.2M18.6 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
     <button class="icon-btn" id="themeToggle" type="button" aria-label="ライト / ダークを切り替え">
       <svg class="ic-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -34,73 +40,71 @@
   <main>
     <!-- ① 秒単位で増え続ける金額(最優先) -->
     <section class="card hero" id="heroCard">
-      <div class="hero-main">
-        <div class="clock">
+      <div class="hero-top">
+        <div class="clock-wrap">
+          <div class="clock">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <circle class="clock-track" cx="100" cy="100" r="78" />
-            <path class="clock-planned" id="clockPlanned" d="" />
-            <path class="clock-break" id="clockBreak" d="" />
-            <path class="clock-actual" id="clockActual" d="" />
+            <circle class="clock-track" cx="100" cy="100" r="76" />
+            <circle class="clock-track" cx="100" cy="100" r="54" />
+            <g class="clock-planned" id="clockPlanned"></g>
+            <g class="clock-break" id="clockBreak"></g>
+            <g class="clock-actual" id="clockActual"></g>
             <g id="clockTicks"></g>
+            <g id="clockLabels"></g>
             <line class="clock-hand" id="clockHand" x1="100" y1="100" x2="100" y2="30" />
-            <circle class="clock-hub" cx="100" cy="100" r="3.6" />
+            <circle class="clock-hub" cx="100" cy="100" r="2.8" />
           </svg>
           <div class="clock-center">
             <span class="clock-value" id="clockValue">0:00</span>
             <span class="clock-unit">今日の実働</span>
           </div>
+          </div>
+          <div class="clock-cap" id="clockCap"></div>
         </div>
-        <div class="clock-cap" id="clockCap"></div>
 
-        <div class="hero-figure">
-          <div class="amount amount--main" id="liveAmount">
-            <span class="yen">¥</span><span id="liveInt">0</span><span class="dec" id="liveDec">.00</span>
+        <!-- 今月と先月(同じ経過日数時点)の金額を並べた棒グラフ。青い線は基本給 -->
+        <div class="vchart" id="monthBar">
+          <div class="vchart-plot">
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill" id="monthBarFill"></div></div>
+              <span class="vbar-cap">今月</span>
+            </div>
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill is-prev" id="prevBarFill"></div></div>
+              <span class="vbar-cap">先月</span>
+            </div>
+            <div class="vbar-marks" id="monthBarMarks"></div>
           </div>
-          <div class="hero-labels">
-            <span class="hero-label" id="tickerLabel">今このセッション</span>
-            <span class="hero-state" id="rateStrip"></span>
-          </div>
-          <div class="hero-meta" id="liveMeta">出勤していません</div>
         </div>
       </div>
 
-      <!-- 今月の金額。青=基本給ライン / 赤=先月の合計 -->
-      <div class="vbar" id="monthBar">
-        <div class="vbar-track">
-          <div class="vbar-fill" id="monthBarFill"></div>
-          <div class="vbar-marks" id="monthBarMarks"></div>
+      <div class="hero-figure">
+        <div class="amount amount--main" id="liveAmount">
+          <span class="yen">¥</span><span id="liveInt">0</span><span class="dec" id="liveDec">.00</span>
         </div>
-        <span class="vbar-cap">今月</span>
+        <div class="hero-labels">
+          <span class="hero-label" id="tickerLabel">今このセッション</span>
+          <span class="hero-state" id="rateStrip"></span>
+        </div>
+        <div class="hero-meta" id="liveMeta">出勤していません</div>
       </div>
     </section>
 
-    <!-- ②今日 ③今月 + 先月比 -->
+    <!-- ②今日 ③今月 -->
     <section class="stats">
       <div class="card stat">
-        <span class="stat-icon stat-icon--cyan" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.2V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </span>
-        <div class="amount amount--sub" id="todayAmount">¥0</div>
         <div class="stat-label">今日</div>
+        <div class="amount amount--sub" id="todayAmount">¥0</div>
         <div class="stat-sub" id="todaySub">0:00</div>
       </div>
 
       <div class="card stat">
-        <span class="stat-icon stat-icon--amber" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M13.6 3.2 6.4 13.4h4.6l-.9 7.4 7.5-10.6h-4.7z" fill="currentColor"/></svg>
-        </span>
-        <div class="amount amount--sub" id="monthAmount">¥0</div>
         <div class="stat-label">今月</div>
-        <div class="stat-sub" id="monthSub">0:00</div>
-      </div>
-
-      <div class="card stat">
-        <span class="stat-icon stat-icon--green" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 16.5 9.5 11l3.5 3.5L20 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.4 7.5H20v4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        <div class="amount amount--sub diff" id="monthDiff" hidden>±0</div>
-        <div class="stat-label">先月の同時点と比べて</div>
-        <div class="stat-sub" id="monthDiffSub">まだ比べられません</div>
+        <div class="amount amount--sub" id="monthAmount">¥0</div>
+        <div class="stat-sub">
+          <span id="monthSub">0:00</span>
+          <span class="diff" id="monthDiff" hidden></span>
+        </div>
       </div>
     </section>
 
@@ -125,21 +129,25 @@
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M14 4.5h3.8A1.7 1.7 0 0 1 19.5 6.2v11.6A1.7 1.7 0 0 1 17.8 19.5H14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 8.2 5.2 12l4.3 3.8M6 12h8.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>退勤</span>
     </button>
+    <button class="act act--break" id="breakBtn" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4.6 9.4h11.2v5.2a4 4 0 0 1-4 4H8.6a4 4 0 0 1-4-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15.8 10.6h1.8a2.4 2.4 0 0 1 0 4.8h-1.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 3.6v2.4M12 3.6v2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>休憩開始</span>
+    </button>
     <button class="act act--ot" id="overtimeBtn" type="button" hidden>
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.4V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <span>残業開始</span>
     </button>
-    <span class="act-sep" aria-hidden="true"></span>
-    <button class="act act--icon" id="openCalendar" type="button">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.8" y="5.2" width="16.4" height="15" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <span>カレンダー</span>
-    </button>
-    <button class="act act--icon" id="openSettings" type="button">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v2.2M12 18.6v2.2M3.2 12h2.2M18.6 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <span>設定</span>
-    </button>
   </nav>
 </div>
+
+<!-- ------------------------------------------------------ 打刻の確認 -->
+<dialog id="confirmDialog" class="confirm">
+  <p class="confirm-text" id="confirmText">-</p>
+  <div class="confirm-actions">
+    <button class="btn btn--ghost" id="confirmNo" type="button">キャンセル</button>
+    <button class="btn btn--in" id="confirmYes" type="button">はい</button>
+  </div>
+</dialog>
 
 <!-- ------------------------------------------------------------ 設定 -->
 <dialog id="settingsDialog" class="sheet">
@@ -148,9 +156,7 @@
     <button class="icon-btn" value="close" type="submit" aria-label="閉じる">×</button>
   </form>
   <div class="sheet-body">
-    <p class="first-run" id="firstRunNote" hidden>
-      はじめに、基本給と働き方を登録してください。データはこの端末のブラウザ内にのみ保存されます。
-    </p>
+    <p class="form-msg" id="firstRunNote" hidden></p>
 
     <label class="field">
       <span class="field-label">基本給(月額・円)</span>
@@ -172,13 +178,13 @@
     </div>
 
     <div class="field">
-      <span class="field-label">休憩時間帯</span>
+      <span class="field-label">昼休憩の時間帯</span>
       <div class="field-inline">
         <select id="setBreakStart"></select>
         <span class="tilde">〜</span>
         <select id="setBreakEnd"></select>
       </div>
-      <span class="hint">休憩は打刻しません。登録した時間帯と重なった分だけ自動で差し引き、その間はカウンターが止まります。開始時刻を選ぶと、終了は1時間後が入ります。</span>
+      <span class="hint">毎日決まった昼休憩です。この時間帯は自動で差し引かれ、カウンターも止まります(打刻は不要)。開始時刻を選ぶと、終了は1時間後が入ります。それ以外の休憩は、画面下の「休憩開始 / 休憩終了」で何度でも記録できます。</span>
     </div>
 
     <div class="field derived">
@@ -230,7 +236,7 @@
     </details>
 
     <details class="note">
-      <summary>この数字について</summary>
+      <summary>金額の見かたと注意</summary>
       <p>本アプリは額面(グロス)の労働対価のみを可視化します。社会保険料・所得税・住民税などの控除、年末調整、賞与は対象外です。</p>
       <p>打刻はこのアプリ上での個人の記録であり、会社の勤怠システムとは別物です。表示される金額は体感用の目安で、給与明細と一致しないことがあります。正式な給与計算・労務相談の代替ではありません。</p>
     </details>

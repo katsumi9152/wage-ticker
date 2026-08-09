@@ -64,6 +64,8 @@
       autoDayKey: null,
       periodStartKey: null,
       configured: false,
+      /** その日の手動の休憩 [{start, end|null}]。終了前のものは1つだけ存在しうる。 */
+      breaks: [],
     };
   }
 
@@ -245,29 +247,57 @@
 
     // ------------------------------------------------------------- 打刻
 
-    /** 出勤(SPEC 5.1) */
+    /** 出勤。手動の打刻は自動モードより優先される。 */
     clockIn: function (nowMs) {
       var now = new Date(nowMs);
       this.state.status = 'working';
       this.state.clockInAt = nowMs;
       this.state.isLegalHoliday = A.judgeLegalHoliday(now, this.settings, this.calendar);
       this.state.overtimeFlag = false;
+      this.state.breaks = [];
       this.saveState();
     },
 
-    /** 退勤 */
+    /** 退勤。休憩を開けたままなら、その時点で閉じてから確定する。 */
     clockOut: function (nowMs) {
       if (this.state.status !== 'working' || !this.state.clockInAt) return;
-      this.commitSession(this.state.clockInAt, nowMs, this.state.isLegalHoliday);
+      this.endBreak(nowMs);
+      this.commitSession(this.state.clockInAt, nowMs, this.state.isLegalHoliday, this.state.breaks);
       this.state.status = 'off';
       this.state.clockInAt = null;
       this.state.lastClockOutAt = nowMs;
       this.state.overtimeFlag = false;
+      this.state.breaks = [];
       this.saveState();
     },
 
+    /** いま休憩中か(手動の休憩が開いたままか) */
+    isOnManualBreak: function () {
+      return WT.wage.hasOpenBreak(this.state.breaks);
+    },
+
+    /** 休憩開始。何度でも記録できる。 */
+    startBreak: function (nowMs) {
+      if (this.isOnManualBreak()) return;
+      if (!this.state.breaks) this.state.breaks = [];
+      this.state.breaks.push({ start: nowMs, end: null });
+      this.saveState();
+    },
+
+    /** 休憩終了 */
+    endBreak: function (nowMs) {
+      var list = this.state.breaks || [];
+      for (var i = list.length - 1; i >= 0; i--) {
+        if (list[i] && !list[i].end) {
+          list[i].end = nowMs;
+          this.saveState();
+          return;
+        }
+      }
+    },
+
     /** 打刻区間をカレンダーへ確定保存する(日をまたぐ場合は継続日へ印を付ける) */
-    commitSession: function (startMs, endMs, isLegalHoliday) {
+    commitSession: function (startMs, endMs, isLegalHoliday, breaks) {
       if (!(endMs > startMs)) return;
       var startKey = T.dateKey(new Date(startMs));
       var existing = this.calendar[startKey] || {};
@@ -277,6 +307,7 @@
         clockIn: startMs,
         clockOut: endMs,
         isLegalHoliday: !!isLegalHoliday,
+        breaks: (breaks || []).slice(),
       };
       this.calendar[startKey] = entry;
 
@@ -317,14 +348,17 @@
     var settings = store.settings;
     var state = store.state;
     if (!settings.autoMode) return { active: null, finalized: false };
+    // 手動で出勤しているあいだは、そちらを優先して自動計測は行わない
+    if (state.status === 'working' && state.clockInAt) return { active: null, finalized: false };
 
     var now = new Date(nowMs);
     var todayKey = T.dateKey(now);
 
-    // 日付が変わったら残業フラグをリセットする
+    // 日付が変わったら残業フラグと休憩をリセットする
     if (state.autoDayKey !== todayKey) {
       state.autoDayKey = todayKey;
       state.overtimeFlag = false;
+      state.breaks = [];
       store.saveState();
     }
 
@@ -348,16 +382,23 @@
 
     if (nowMs >= endMs && !state.overtimeFlag) {
       // 「残業開始」が押されないまま退勤予定時刻を迎えたので自動確定(SPEC 5.3 / 14)
-      store.commitSession(startMs, endMs, A.judgeLegalHoliday(now, settings, store.calendar));
+      store.endBreak(endMs);
+      store.commitSession(startMs, endMs, A.judgeLegalHoliday(now, settings, store.calendar), state.breaks);
       state.status = 'off';
       state.clockInAt = null;
       state.lastClockOutAt = endMs;
+      state.breaks = [];
       store.saveState();
       return { active: null, finalized: true };
     }
 
     return {
-      active: { startMs: startMs, isLegalHoliday: A.judgeLegalHoliday(now, settings, store.calendar), scheduledEndMs: endMs },
+      active: {
+        startMs: startMs,
+        isLegalHoliday: A.judgeLegalHoliday(now, settings, store.calendar),
+        scheduledEndMs: endMs,
+        breaks: state.breaks || [],
+      },
       finalized: false,
     };
   }

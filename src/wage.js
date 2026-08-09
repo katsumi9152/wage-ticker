@@ -90,13 +90,17 @@
 
   /**
    * 1回の打刻区間から、休憩控除後の実働セグメント(深夜/非深夜に分割済み)を作る。
-   * SPEC 5.2: 休憩は打刻せず、登録済みの時間帯と重なった分だけ自動控除する。
+   *
+   * 控除は2種類あり、どちらも打刻区間から差し引く。重なっていても二重には引かれない。
+   *   ① 昼休憩(設定した時間帯)  — 自動で差し引く
+   *   ② 手動の休憩(休憩開始/終了) — 押した区間を差し引く。終了前なら現在時刻まで
    *
    * @param {number} startMs 出勤時刻
    * @param {number} endMs   退勤時刻(リアルタイム表示中は現在時刻)
-   * @param {?{start:string,end:string}} breakWindow 休憩時間帯(null なら一律控除)
+   * @param {?{start:string,end:string}} breakWindow 昼休憩の時間帯(null なら一律控除)
+   * @param {?Array<{start:number,end:?number}>} manualBreaks 手動の休憩
    */
-  function sessionWork(startMs, endMs, breakWindow) {
+  function sessionWork(startMs, endMs, breakWindow, manualBreaks) {
     var rawMinutes = Math.max(0, (endMs - startMs) / T.MS_PER_MINUTE);
     var segments = T.splitByNight(startMs, endMs);
     var deductedMinutes = 0;
@@ -108,6 +112,19 @@
     } else {
       deductedMinutes = Math.min(rawMinutes, flatBreakDeduction(rawMinutes));
       segments = T.trimFromStart(segments, deductedMinutes);
+    }
+
+    if (manualBreaks && manualBreaks.length) {
+      var windows = [];
+      for (var i = 0; i < manualBreaks.length; i++) {
+        var b = manualBreaks[i];
+        if (!b || !b.start) continue;
+        var bEnd = b.end || endMs; // 終了前の休憩は「いまも休憩中」として現在まで引く
+        if (bEnd > b.start) windows.push({ startMs: b.start, endMs: bEnd });
+      }
+      var beforeManual = T.totalMinutes(segments);
+      segments = T.subtractWindows(segments, windows);
+      deductedMinutes += beforeManual - T.totalMinutes(segments);
     }
 
     return {
@@ -309,7 +326,7 @@
    */
   function calcEarnings(cursor, startMs, endMs, settings, rates, opts) {
     var o = opts || {};
-    var work = sessionWork(startMs, endMs, settings.breakWindow);
+    var work = sessionWork(startMs, endMs, settings.breakWindow, o.breaks);
     var breakdown = allocateSegments(cursor, work.segments, {
       isLegalHoliday: !!o.isLegalHoliday,
       baseHourlyRate: rates.baseHourlyRate,
@@ -319,9 +336,18 @@
       rawMinutes: work.rawMinutes,
       deductedMinutes: work.deductedMinutes,
       workedMinutes: work.workedMinutes,
-      onBreak: work.segments.length > 0 ? isOnBreakAt(endMs, startMs, settings.breakWindow) : false,
+      onBreak: isOnBreakAt(endMs, startMs, settings.breakWindow) || hasOpenBreak(o.breaks),
       breakdown: breakdown,
     };
+  }
+
+  /** 終了していない手動の休憩があるか(= いま休憩中) */
+  function hasOpenBreak(breaks) {
+    if (!breaks) return false;
+    for (var i = 0; i < breaks.length; i++) {
+      if (breaks[i] && breaks[i].start && !breaks[i].end) return true;
+    }
+    return false;
   }
 
   /** いま休憩時間帯の中か(カウンターを止める判定・SPEC 5.3) */
@@ -389,6 +415,7 @@
     allocateScheduledDay: allocateScheduledDay,
     calcEarnings: calcEarnings,
     isOnBreakAt: isOnBreakAt,
+    hasOpenBreak: hasOpenBreak,
     marginalRate: marginalRate,
     BUCKET_KEYS: BUCKET_KEYS,
   };

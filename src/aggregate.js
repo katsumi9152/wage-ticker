@@ -113,6 +113,7 @@
           : judgeLegalHoliday(d, settings, calendar);
         var res = W.calcEarnings(cursor, entry.clockIn, entry.clockOut, settings, rates, {
           isLegalHoliday: isHoliday,
+          breaks: entry.breaks,
         });
         record = {
           date: key,
@@ -196,6 +197,7 @@
     var cursor = W.cloneCursor(aggregate.cursor);
     var res = W.calcEarnings(cursor, activeSession.startMs, nowMs, settings, aggregate.rates, {
       isLegalHoliday: !!activeSession.isLegalHoliday,
+      breaks: activeSession.breaks,
     });
     var margin = W.marginalRate(cursor, aggregate.rates, {
       isLegalHoliday: !!activeSession.isLegalHoliday,
