@@ -168,7 +168,7 @@ body { min-height: 100svh; }
   font-weight: 800;
   letter-spacing: 0.02em;
 }
-.brand-wage { color: var(--ink); }
+.brand-wage { color: var(--red); }
 .brand-ticker {
   font-family: var(--mono);
   color: var(--cyan);
