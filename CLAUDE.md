@@ -26,7 +26,7 @@ pwsh -File test\run.ps1
 ## 構造の約束
 
 - `src/app.js` だけが DOM に触れる。それ以外(`wage.js` / `aggregate.js` / `period.js` /
-  `time.js` / `storage.js`)は DOM に依存しない純粋関数に保つ
+  `time.js` / `holidays.js` / `storage.js`)は DOM に依存しない純粋関数に保つ
 - 割増率・しきい値・デフォルト設定は `src/constants.js` に集約する。他の場所に数値を直書きしない
 - 重い区分計算は 1 秒ごと、金額の描画は `requestAnimationFrame`。この分離を壊さない
 - 色は `styles.css` の `:root` トークン経由でのみ使う。コンポーネントに生の色を書かない。
@@ -37,8 +37,9 @@ pwsh -File test\run.ps1
 
 ## SPEC から意図的にずらした点
 
-README の「SPEC からの判断・補足」に 4 点まとめてある。仕様と実装が食い違って見えても、
-まずそこを確認すること。勝手に「仕様どおり」に戻さない。
+README の「SPEC からの判断・補足」にまとめてある(固定残業代・祝日など、SPEC に無い
+追加項目も含む)。仕様と実装が食い違って見えても、まずそこを確認すること。勝手に
+「仕様どおり」に戻さない。
 
 ## ユーザーとのやりとり
 
