@@ -176,11 +176,17 @@ body { min-height: 100svh; }
   border-radius: 50%;
   background: var(--faint);
 }
-/* 勤務中=緑(増えている)/ 休憩中=アンバー(止まっている)/ 自動計測中=シアン */
+/*
+ * 勤務中=緑(増えている)/ 休憩中=アンバー(止まっている)/ 自動計測中=シアン。
+ * 「稼いでいる」勤務中だけは、休憩中・自動計測中より一段はっきり主張させる
+ * (塗りつぶし + ごく淡い光暈)。他は控えめな縁取りのままにする。
+ */
 .pill.is-working {
-  background: color-mix(in srgb, var(--green) 16%, transparent);
-  border-color: color-mix(in srgb, var(--green) 45%, transparent);
-  color: var(--green);
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--card);
+  font-weight: 800;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 16%, transparent);
 }
 .pill.is-break {
   background: color-mix(in srgb, var(--amber) 16%, transparent);
@@ -192,7 +198,7 @@ body { min-height: 100svh; }
   border-color: color-mix(in srgb, var(--cyan) 45%, transparent);
   color: var(--cyan);
 }
-.pill.is-working .dot { background: var(--green); }
+.pill.is-working .dot { background: var(--card); width: 8px; height: 8px; }
 .pill.is-break .dot { background: var(--amber); }
 .pill.is-auto .dot { background: var(--cyan); }
 .pill.is-working .dot,

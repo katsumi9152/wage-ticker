@@ -381,5 +381,14 @@
 <script src="src/aggregate.js?v=20260811a"></script>
 <script src="src/storage.js?v=20260811a"></script>
 <script src="src/app.js?v=20260811a"></script>
+<script>
+  // 通信が無くても開けるようにする(オフライン時は最後に成功した分を出す)。
+  // アプリ本体の動作には関わらないので、対応していないブラウザでは静かに無視される。
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 対応外のブラウザは無視 */ });
+    });
+  }
+</script>
 </body>
 </html>
