@@ -255,6 +255,18 @@
 
     setOtTone($('ot45').parentNode, to45, 10 * 60);
     setOtTone($('ot60').parentNode, to60, 10 * 60);
+
+    // 固定残業代がある場合は、その消化ぐあいを添える
+    var fixedMin = Number(ctx.settings.fixedOvertimeHours || 0) * 60;
+    var el = $('otFixed');
+    if (fixedMin > 0) {
+      el.hidden = false;
+      var used = Math.min(otMinutes, fixedMin);
+      el.textContent = '固定残業 ' + fmtHours(used) + ' / ' + fmtHours(fixedMin) +
+        (otMinutes > fixedMin ? '(超過分に割増がついています)' : '(ここまでは追加の割増なし)');
+    } else {
+      el.hidden = true;
+    }
   }
 
   /**
@@ -451,6 +463,9 @@
 
   // ------------------------------------------------------ 補助情報(10.1 ④)
 
+  /** 固定残業代が足りているかを見るときの割増率(法定時間外の下限) */
+  var RATE_OT = WT.RATE.STATUTORY_OVERTIME;
+
   function kv(k, v, opts) {
     var o = opts || {};
     return '<div class="kv' + (o.zero ? ' is-zero' : '') + '"><span class="k">' + k +
@@ -467,6 +482,7 @@
     html += '<div class="sec"><h3>今月の内訳</h3>';
     html += kv('所定内(基本給ぶん)', fmtHours(b.scheduledInside.minutes) + ' / ' + fmtYen(b.scheduledInside.amount), { money: true, zero: b.scheduledInside.minutes === 0 });
     html += kv('法定内残業 ×1.00', fmtHours(b.legalInsideOvertime.minutes) + ' / ' + fmtYen(b.legalInsideOvertime.amount), { money: true, zero: b.legalInsideOvertime.minutes === 0 });
+    html += kv('固定残業でカバー', fmtHours(b.fixedOvertime.minutes) + ' / ' + fmtYen(b.fixedOvertime.amount), { money: true, zero: b.fixedOvertime.minutes === 0 });
     html += kv('法定時間外 ×1.25', fmtHours(b.statutoryOvertime.minutes) + ' / ' + fmtYen(b.statutoryOvertime.amount), { money: true, zero: b.statutoryOvertime.minutes === 0 });
     html += kv('法定時間外 ×1.50(60h超)', fmtHours(b.statutoryOvertimeOver60.minutes) + ' / ' + fmtYen(b.statutoryOvertimeOver60.amount), { money: true, zero: b.statutoryOvertimeOver60.minutes === 0 });
     html += kv('法定休日 ×1.35', fmtHours(b.legalHoliday.minutes) + ' / ' + fmtYen(b.legalHoliday.amount), { money: true, zero: b.legalHoliday.minutes === 0 });
@@ -527,6 +543,17 @@
       singleMonthMinutes < WT.AGREEMENT_36.MONTHLY_HARD_MINUTES
         ? '残り ' + fmtHours(WT.AGREEMENT_36.MONTHLY_HARD_MINUTES - singleMonthMinutes)
         : '超過');
+    // 固定残業代が、その時間ぶんの割増賃金額を下回っていないか(下回る定めは無効)
+    var fixedMinutes = Number(s.fixedOvertimeHours || 0) * 60;
+    if (fixedMinutes > 0) {
+      var required = (fixedMinutes / 60) * RATE_OT * agg.rates.baseHourlyRate;
+      var allowance = Number(s.fixedOvertimeAllowance || 0);
+      html += kv('固定残業代', fmtYen(allowance) + ' / ' + s.fixedOvertimeHours + '時間ぶん', { money: true });
+      if (allowance < required - 1) {
+        html += '<p class="note-line">固定残業代が、' + s.fixedOvertimeHours +
+          '時間ぶんの割増賃金額(' + fmtYen(required) + ')を下回っています。設定の見直しか、会社の給与規程の確認をおすすめします。</p>';
+      }
+    }
     html += '<p class="note-line">年間の累計や「月45時間超が年に何回か」といった管理は、会社の勤怠システムが行うものです。ここでは今月ぶんの時間だけを目安として出しています。</p>';
     html += '</div>';
 
@@ -737,6 +764,10 @@
     for (var d0 = 90; d0 <= 145; d0++) holidays.push({ value: d0, label: d0 + '日' });
     fillSelect('setAnnualHolidays', holidays);
 
+    var fixedHours = [{ value: 0, label: 'なし' }];
+    for (var fh = 5; fh <= 80; fh += 5) fixedHours.push({ value: fh, label: fh + '時間' });
+    fillSelect('setFixedHours', fixedHours);
+
     fillSelect('setBreakStart', timeOptions());
     fillSelect('setBreakEnd', timeOptions());
     fillSelect('setScheduleStart', timeOptions());
@@ -814,6 +845,8 @@
     $('setSalary').type = 'password';
     $('salaryEye').textContent = '表示';
     $('setSalary').placeholder = String(WT.BASE_SALARY_PLACEHOLDER);
+    $('setFixedAllowance').value = Number(s.fixedOvertimeAllowance || 0) || '';
+    setSelectValue('setFixedHours', Number(s.fixedOvertimeHours || 0));
     setSelectValue('setAnnualHolidays', s.annualHolidays);
     $('setClosingDay').value = String(s.closingDay);
     $('setLegalWeekday').value = String(s.legalHolidayWeekday);
@@ -861,6 +894,8 @@
     s.legalHolidayWeekday = Number($('setLegalWeekday').value);
     s.workdays = workdays;
     s.breakWindow = { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
+    s.fixedOvertimeAllowance = Math.max(0, Number(String($('setFixedAllowance').value).replace(/[^\d.]/g, '')) || 0);
+    s.fixedOvertimeHours = Number($('setFixedHours').value) || 0;
     s.showToday = $('setShowToday').checked;
     s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;

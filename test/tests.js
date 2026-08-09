@@ -193,6 +193,64 @@
     near(bd.amount, (60 / 60) * 1.25 * 2000 + (60 / 60) * 1.5 * 2000);
   });
 
+  test('固定残業代: 決めた時間までは割増を上乗せせず、超えた分から1.25倍', function () {
+    // 固定残業 20時間 / 40,000円、基礎時給 2,000円
+    var frames = {
+      scheduledFrameMinutes: 0,
+      legalFrameMinutes: 0,
+      fixedOvertimeMinutes: 20 * 60,
+      fixedOvertimeAllowance: 40000,
+    };
+
+    // ① 10時間だけ働いた場合: 固定残業の枠内。40,000円の半分が積み上がる。
+    var c1 = W.createCursor(frames);
+    var bd1 = W.allocateSegments(c1, [{ minutes: 600, isNight: false }], {
+      isLegalHoliday: false, baseHourlyRate: 2000,
+    });
+    near(bd1.fixedOvertime.minutes, 600);
+    near(bd1.fixedOvertime.amount, 20000, 1e-6, '月額を時間で均して積む');
+    near(bd1.statutoryOvertime.minutes, 0, 1e-9, '枠内で割増が発生している');
+    near(bd1.amount, 20000, 1e-6);
+
+    // ② 30時間働いた場合: 20時間ぶんの固定残業代 + 超過10時間の 1.25倍
+    var c2 = W.createCursor(frames);
+    var bd2 = W.allocateSegments(c2, [{ minutes: 1800, isNight: false }], {
+      isLegalHoliday: false, baseHourlyRate: 2000,
+    });
+    near(bd2.fixedOvertime.minutes, 1200);
+    near(bd2.fixedOvertime.amount, 40000, 1e-6, '固定残業代は満額まで');
+    near(bd2.statutoryOvertime.minutes, 600, 1e-9, '超過分だけ割増の対象');
+    near(bd2.statutoryOvertime.amount, 10 * 1.25 * 2000, 1e-6);
+    near(bd2.amount, 40000 + 25000, 1e-6);
+  });
+
+  test('固定残業代: 月60時間のラインは固定残業ぶんも含めて数える', function () {
+    var frames = {
+      scheduledFrameMinutes: 0,
+      legalFrameMinutes: 0,
+      fixedOvertimeMinutes: 60 * 60, // 固定残業60時間
+      fixedOvertimeAllowance: 120000,
+    };
+    var cursor = W.createCursor(frames);
+    var bd = W.allocateSegments(cursor, [{ minutes: 70 * 60, isNight: false }], {
+      isLegalHoliday: false, baseHourlyRate: 2000,
+    });
+    near(bd.fixedOvertime.minutes, 60 * 60);
+    near(bd.statutoryOvertime.minutes, 0, 1e-9, '60時間を過ぎているので1.25は出ない');
+    near(bd.statutoryOvertimeOver60.minutes, 10 * 60, 1e-9, '超過分は1.50倍');
+    near(bd.statutoryOvertimeOver60.amount, 10 * 1.5 * 2000, 1e-6);
+  });
+
+  test('固定残業代が0なら、これまでどおり最初から割増がつく', function () {
+    var cursor = W.createCursor({ scheduledFrameMinutes: 0, legalFrameMinutes: 0 });
+    var bd = W.allocateSegments(cursor, [{ minutes: 600, isNight: false }], {
+      isLegalHoliday: false, baseHourlyRate: 2000,
+    });
+    near(bd.fixedOvertime.minutes, 0);
+    near(bd.statutoryOvertime.minutes, 600);
+    near(bd.amount, 10 * 1.25 * 2000, 1e-6);
+  });
+
   test('3.3 深夜は他の割増に +0.25 で加算される', function () {
     var cursor = W.createCursor({ scheduledFrameMinutes: 0, legalFrameMinutes: 0 });
     var bd = W.allocateSegments(cursor, [{ minutes: 60, isNight: true }], {

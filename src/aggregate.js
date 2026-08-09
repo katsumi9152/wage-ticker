@@ -61,6 +61,8 @@
       scheduledWorkDays: scheduledWorkDays,
       scheduledFrameMinutes: Number(settings.dailyScheduledHours || 0) * 60 * scheduledWorkDays,
       legalFrameMinutes: (WT.WEEKLY_LEGAL_HOURS * period.calendarDays * 60) / 7,
+      fixedOvertimeMinutes: Number(settings.fixedOvertimeHours || 0) * 60,
+      fixedOvertimeAllowance: Number(settings.fixedOvertimeAllowance || 0),
     };
   }
 

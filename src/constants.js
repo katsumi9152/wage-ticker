@@ -99,6 +99,14 @@
     workdays: [1, 2, 3, 4, 5],
     /** 休憩時間帯。null なら一律 DEFAULT_BREAK_MINUTES を控除(SPEC 5.2) */
     breakWindow: { start: '12:00', end: '13:00' },
+    /**
+     * 固定残業代(みなし残業)。0 なら無し。
+     * 固定残業代そのものは割増賃金なので、基礎時給単価の計算には含めない。
+     * 法定時間外のうち fixedOvertimeHours までは固定残業代でカバー済みとして扱い、
+     * 超えた分から通常の割増(1.25 / 1.50)が上乗せされる。
+     */
+    fixedOvertimeAllowance: 0,
+    fixedOvertimeHours: 0,
     /** メイン画面に「今日」「今月」を出すか(秒単位の金額は常に表示) */
     showToday: true,
     showMonth: true,

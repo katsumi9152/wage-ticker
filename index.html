@@ -126,6 +126,7 @@
           <span class="ot-cap">60時間まで</span>
         </div>
       </div>
+      <p class="ot-fixed" id="otFixed" hidden></p>
     </section>
 
     <!-- 先月との比較(同じ経過日数時点)。金額は出さず、時間の内訳だけを見せる -->
@@ -190,6 +191,16 @@
       </span>
       <span class="hint">基本給に、役職手当・資格手当など毎月決まって支払われる手当を足した額です。家族手当・通勤手当・住宅手当(いずれも個人の事情に応じて支給されるもの)、臨時の賃金、賞与は、法律上この基礎に含めません。人前で開いても読めないよう伏せ字にしています。</span>
     </label>
+
+    <div class="field">
+      <span class="field-label">固定残業代(みなし残業)</span>
+      <div class="field-inline">
+        <input id="setFixedAllowance" type="number" inputmode="numeric" min="0" step="1000" placeholder="0">
+        <span class="tilde">円 /</span>
+        <select id="setFixedHours"></select>
+      </div>
+      <span class="hint">給与に固定残業代が含まれている場合に入れます。ここに入れた時間までは追加の割増がつかず、超えた分から1.25倍(月60時間超は1.50倍)が上乗せされます。無い場合は0のままにしてください。</span>
+    </div>
 
     <div class="field">
       <span class="field-label">出勤時間 / 退勤時間</span>

@@ -314,6 +314,13 @@ body { min-height: 100svh; }
   color: var(--faint);
   letter-spacing: 0.04em;
 }
+.ot-fixed {
+  margin: 12px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.ot-fixed[hidden] { display: none; }
 /* ------------------------------------------------------ 先月との比較 */
 
 .compare { padding: 15px 16px 14px; display: flex; flex-direction: column; gap: 4px; }

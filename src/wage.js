@@ -148,6 +148,7 @@
     return {
       scheduledInside: emptyBucket(), // 所定内
       legalInsideOvertime: emptyBucket(), // 法定内残業
+      fixedOvertime: emptyBucket(), // 固定残業代でカバーされる法定時間外
       statutoryOvertime: emptyBucket(), // 法定時間外(60hまで)
       statutoryOvertimeOver60: emptyBucket(), // 法定時間外(60h超)
       legalHoliday: emptyBucket(), // 法定休日労働
@@ -166,6 +167,7 @@
   var BUCKET_KEYS = [
     'scheduledInside',
     'legalInsideOvertime',
+    'fixedOvertime',
     'statutoryOvertime',
     'statutoryOvertimeOver60',
     'legalHoliday',
@@ -199,8 +201,11 @@
     return {
       scheduledFrameMinutes: frames.scheduledFrameMinutes,
       legalFrameMinutes: frames.legalFrameMinutes,
+      /** 固定残業代でカバーされる法定時間外の分数と、その月額 */
+      fixedOvertimeMinutes: frames.fixedOvertimeMinutes || 0,
+      fixedOvertimeAllowance: frames.fixedOvertimeAllowance || 0,
       frameMinutes: 0, // 総枠を消化した分(法定休日労働を除く)
-      statutoryOvertimeMinutes: 0, // 60hラインの判定用
+      statutoryOvertimeMinutes: 0, // 60hラインと固定残業の消化の判定用
       holidayMinutes: 0,
       workedMinutes: 0, // 実働合計(法定休日労働も含む)
     };
@@ -210,6 +215,8 @@
     return {
       scheduledFrameMinutes: cursor.scheduledFrameMinutes,
       legalFrameMinutes: cursor.legalFrameMinutes,
+      fixedOvertimeMinutes: cursor.fixedOvertimeMinutes,
+      fixedOvertimeAllowance: cursor.fixedOvertimeAllowance,
       frameMinutes: cursor.frameMinutes,
       statutoryOvertimeMinutes: cursor.statutoryOvertimeMinutes,
       holidayMinutes: cursor.holidayMinutes,
@@ -279,17 +286,33 @@
         }
       }
 
-      // ③ 法定時間外労働(月60hを境に 1.25 / 1.50)
+      // ③ 法定時間外労働
       if (rest > 0) {
-        var under60Remain = Math.max(0, WT.OVER60_THRESHOLD_MINUTES - cursor.statutoryOvertimeMinutes);
-        var under60 = Math.min(rest, under60Remain);
-        if (under60 > 0) {
-          pushBucket(bd.statutoryOvertime, under60, RATE.STATUTORY_OVERTIME, baseHourlyRate);
+        // ③-a 固定残業代でカバーされる分。割増は上乗せせず、月額を時間で均して積む。
+        var covered = 0;
+        if (cursor.fixedOvertimeMinutes > 0) {
+          covered = Math.min(rest, Math.max(0, cursor.fixedOvertimeMinutes - cursor.statutoryOvertimeMinutes));
+          if (covered > 0) {
+            bd.fixedOvertime.minutes += covered;
+            bd.fixedOvertime.amount += (cursor.fixedOvertimeAllowance / cursor.fixedOvertimeMinutes) * covered;
+          }
         }
-        var over60 = rest - under60;
-        if (over60 > 0) {
-          pushBucket(bd.statutoryOvertimeOver60, over60, RATE.STATUTORY_OVERTIME_OVER60, baseHourlyRate);
+
+        // ③-b 残りに通常の割増(月60hを境に 1.25 / 1.50)。
+        //     60hラインは固定残業でカバーされた分も含めた累計で判定する。
+        var paid = rest - covered;
+        if (paid > 0) {
+          var consumed = cursor.statutoryOvertimeMinutes + covered;
+          var under60 = Math.min(paid, Math.max(0, WT.OVER60_THRESHOLD_MINUTES - consumed));
+          if (under60 > 0) {
+            pushBucket(bd.statutoryOvertime, under60, RATE.STATUTORY_OVERTIME, baseHourlyRate);
+          }
+          var over60 = paid - under60;
+          if (over60 > 0) {
+            pushBucket(bd.statutoryOvertimeOver60, over60, RATE.STATUTORY_OVERTIME_OVER60, baseHourlyRate);
+          }
         }
+
         cursor.statutoryOvertimeMinutes += rest;
         cursor.frameMinutes += rest;
         rest = 0;
@@ -307,6 +330,7 @@
     bd.amount =
       bd.scheduledInside.amount +
       bd.legalInsideOvertime.amount +
+      bd.fixedOvertime.amount +
       bd.statutoryOvertime.amount +
       bd.statutoryOvertimeOver60.amount +
       bd.legalHoliday.amount +
