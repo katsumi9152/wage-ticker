@@ -1,4 +1,4 @@
-/* 今いくら? — 計器ダッシュボード。外部フォント・ライブラリは読み込まない(SPEC 14)
+/* WageTicker — 計器ダッシュボード。外部フォント・ライブラリは読み込まない(SPEC 14)
  *
  * 配色は見本(ライト: 淡いブルーグレー地に白カード / ダーク: 濃紺地にカード)に合わせている。
  * テーマは3状態: 既定は端末の設定に追従し、ボタンで light / dark を明示指定できる。
@@ -124,8 +124,6 @@ body { min-height: 100svh; }
   gap: 12px;
   padding: 12px 14px;
 }
-
-.brand-mark { color: var(--cyan); display: flex; flex: none; }
 
 .brand {
   display: flex;
