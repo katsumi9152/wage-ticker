@@ -67,6 +67,16 @@
     document.hidden = false;
   });
 
+  test('設定: 所定労働日の曜日は月曜始まりで並ぶ', function () {
+    var html = el('setWorkdays').innerHTML;
+    var order = [];
+    var re = /data-day="(\d)"/g;
+    var m;
+    while ((m = re.exec(html)) !== null) { order[order.length] = Number(m[1]); }
+    eq(order.join(','), '1,2,3,4,5,6,0', '曜日の並び順が月曜始まりになっていない');
+    ok(html.indexOf('>月<') < html.indexOf('>日<'), '月より先に日が出ている');
+  });
+
   // ------------------------------------------------------ 手動モード
 
   test('手動: 出勤を押すと勤務中になる', function () {

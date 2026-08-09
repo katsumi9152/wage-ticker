@@ -107,4 +107,10 @@
   WT.BASE_SALARY_PLACEHOLDER = 300000;
 
   WT.WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
+  /**
+   * 曜日を並べる順(月曜始まり)。値そのものは Date.getDay() と同じ 0=日 のまま扱い、
+   * 表示の順序だけをここで決める。
+   */
+  WT.WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 })((globalThis.WT = globalThis.WT || {}));

@@ -537,7 +537,10 @@
 
     var picker = $('setWorkdays');
     var phtml = '';
-    for (var d = 0; d < 7; d++) phtml += '<button type="button" data-day="' + d + '">' + WT.WEEKDAY_LABELS[d] + '</button>';
+    for (var d = 0; d < WT.WEEKDAY_ORDER.length; d++) {
+      var wday = WT.WEEKDAY_ORDER[d]; // 月曜始まりで並べる(値は 0=日 のまま)
+      phtml += '<button type="button" data-day="' + wday + '">' + WT.WEEKDAY_LABELS[wday] + '</button>';
+    }
     picker.innerHTML = phtml;
     picker.addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-day]');
