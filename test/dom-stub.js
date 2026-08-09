@@ -75,9 +75,8 @@ var document = {
   getElementById: el,
   querySelector: function (sel) { return el(sel); },
   querySelectorAll: function (sel) {
-    // 覗き見防止(SPEC 11)の一括ぼかしを検証できるよう、金額系だけ実体を返す
     if (String(sel).indexOf('.amount') >= 0) {
-      return [el('liveAmount'), el('todayAmount'), el('monthAmount')];
+      return [el('liveAmount'), el('weekAmount'), el('monthAmount')];
     }
     return [];
   },

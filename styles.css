@@ -293,14 +293,6 @@ body { min-height: 100svh; }
 .amount--main .yen { font-size: 0.55em; color: var(--muted); margin-right: 1px; }
 .amount--main .dec { font-size: 0.5em; color: var(--muted); }
 
-/* 円の位が1つ増えるたびの、ごく短い気づき程度のパルス(警告色・音は使わない) */
-#liveInt.is-tick { animation: tick-pulse 0.5s ease-out; display: inline-block; }
-@keyframes tick-pulse {
-  0% { transform: scale(1); }
-  35% { transform: scale(1.035); text-shadow: 0 0 14px color-mix(in srgb, var(--tone) 55%, transparent); }
-  100% { transform: scale(1); text-shadow: none; }
-}
-
 .hero-labels {
   display: flex;
   align-items: center;
@@ -487,14 +479,14 @@ body { min-height: 100svh; }
  * (計算式の枠などで使っている「左に色の帯」の作法をセクション見出しにも広げた)。
  * ヒーローはそれ自体が最大の要素で見出しも中央寄せのため、帯は付けない。
  */
-#todayCard .stat-label,
+#weekCard .stat-label,
 #monthCard .stat-label,
 .ot-head .stat-label,
 .compare > .stat-label {
   padding-left: 9px;
   border-left: 3px solid var(--faint);
 }
-#todayCard .stat-label { border-left-color: var(--cyan); }
+#weekCard .stat-label { border-left-color: var(--cyan); }
 #monthCard .stat-label { border-left-color: var(--blue); }
 .ot-head .stat-label { border-left-color: var(--amber); }
 .compare > .stat-label { border-left-color: var(--violet); }

@@ -113,8 +113,8 @@
      */
     fixedOvertimeAllowance: 0,
     fixedOvertimeHours: 0,
-    /** メイン画面に「今日」「今月」を出すか(秒単位の金額は常に表示) */
-    showToday: true,
+    /** メイン画面に「今週」「今月」を出すか(秒単位の金額は常に表示) */
+    showWeek: true,
     showMonth: true,
     /** 自動モード(SPEC 5.3) */
     autoMode: false,

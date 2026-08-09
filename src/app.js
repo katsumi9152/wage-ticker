@@ -189,19 +189,18 @@
     var live = currentLive(Date.now());
 
     var monthTotal = W.cloneBreakdown(ctx.agg.totals);
+    // 「気づき」(本日休憩なしで長時間、等)は日単位のままなので別に持っておく
     var todayTotal = W.cloneBreakdown(ctx.agg.todayFinalized);
+    var weekSummary = A.weekSummary(ctx.agg.days, ctx.now, ctx.settings, store.calendar);
+    var weekTotal = W.cloneBreakdown(weekSummary.totals);
     if (live) {
       W.addBreakdown(monthTotal, live.breakdown);
       W.addBreakdown(todayTotal, live.breakdown);
+      W.addBreakdown(weekTotal, live.breakdown); // 今日は必ず今週に含まれる
     }
 
-    // 実働は「労働時間 / 所定労働時間」で、どこまで来ているかが分かるようにする
-    var dailyScheduled = Number(ctx.settings.dailyScheduledHours || 0) * 60;
-    var todayIsWorkday = A.isScheduledWorkDay(ctx.now, ctx.settings, store.calendar);
-
-    $('todayAmount').textContent = fmtYen(todayTotal.amount);
-    $('todaySub').textContent = fmtHours(todayTotal.workedMinutes) +
-      (todayIsWorkday ? ' / ' + fmtHours(dailyScheduled) : '');
+    $('weekAmount').textContent = fmtYen(weekTotal.amount);
+    $('weekSub').textContent = fmtHours(weekTotal.workedMinutes) + ' / ' + fmtHours(weekSummary.scheduledMinutes);
     $('monthAmount').textContent = fmtYen(monthTotal.amount);
     $('monthSub').textContent = fmtHours(monthTotal.workedMinutes) +
       ' / ' + fmtHours(ctx.agg.frames.scheduledFrameMinutes);
@@ -230,14 +229,14 @@
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
   }
 
-  /** 「今日」「今月」は設定で隠せる。片方だけなら横幅いっぱいに広げる。 */
+  /** 「今週」「今月」は設定で隠せる。片方だけなら横幅いっぱいに広げる。 */
   function renderVisibility() {
-    var showToday = ctx.settings.showToday !== false;
+    var showWeek = ctx.settings.showWeek !== false;
     var showMonth = ctx.settings.showMonth !== false;
-    $('todayCard').hidden = !showToday;
+    $('weekCard').hidden = !showWeek;
     $('monthCard').hidden = !showMonth;
-    $('statsSection').hidden = !showToday && !showMonth;
-    $('statsSection').classList.toggle('is-single', showToday !== showMonth);
+    $('statsSection').hidden = !showWeek && !showMonth;
+    $('statsSection').classList.toggle('is-single', showWeek !== showMonth);
   }
 
   /**
@@ -373,17 +372,8 @@
     else btn.textContent = text;
   }
 
-  /** 円の整数部が1つ増えるたびに、ごく短いパルスで気づける程度に見せる */
-  var lastLiveIntText = null;
   function setLiveInt(text) {
-    var el = $('liveInt');
-    if (text !== lastLiveIntText) {
-      lastLiveIntText = text;
-      el.classList.remove('is-tick');
-      void el.offsetWidth; // 再生し直すための強制リフロー
-      el.classList.add('is-tick');
-    }
-    el.textContent = text;
+    $('liveInt').textContent = text;
   }
 
   /** 秒単位の描画。ここでは軽い計算しかしない(SPEC 14)。 */
@@ -872,7 +862,7 @@
     setSelectValue('setBreakStart', brk.start);
     setSelectValue('setBreakEnd', brk.end);
 
-    $('setShowToday').checked = s.showToday !== false;
+    $('setShowWeek').checked = s.showWeek !== false;
     $('setShowMonth').checked = s.showMonth !== false;
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
@@ -908,7 +898,7 @@
     s.fixedOvertimeAllowance = Math.max(0, Number(String($('setFixedAllowance').value).replace(/[^\d.]/g, '')) || 0);
     s.fixedOvertimeHours = Number($('setFixedHours').value) || 0;
     s.observeNationalHolidays = $('setObserveHolidays').checked;
-    s.showToday = $('setShowToday').checked;
+    s.showWeek = $('setShowWeek').checked;
     s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };

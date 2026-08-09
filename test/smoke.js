@@ -66,10 +66,10 @@
     ok(el('cmpNowTotal').textContent.indexOf('¥') < 0, 'このグラフに金額は出さない');
   });
 
-  test('設定: 今日 / 今月はそれぞれ隠せる', function () {
-    S.settings.showToday = false;
+  test('設定: 今週 / 今月はそれぞれ隠せる', function () {
+    S.settings.showWeek = false;
     refresh();
-    ok(el('todayCard').hidden === true, '今日を隠せていない');
+    ok(el('weekCard').hidden === true, '今週を隠せていない');
     ok(el('monthCard').hidden === false, '今月まで消えている');
     ok(el('statsSection').classList.contains('is-single'), '片方だけのときは横幅いっぱいにする');
 
@@ -77,10 +77,10 @@
     refresh();
     ok(el('statsSection').hidden === true, '両方オフなら枠ごと隠す');
 
-    S.settings.showToday = true;
+    S.settings.showWeek = true;
     S.settings.showMonth = true;
     refresh();
-    ok(el('todayCard').hidden === false);
+    ok(el('weekCard').hidden === false);
     ok(el('monthCard').hidden === false);
     ok(el('statsSection').hidden === false);
   });
@@ -152,23 +152,6 @@
     ok(el('clockOutBtn').disabled === false, '退勤ボタンが押せる状態になる');
   });
 
-  test('金額の円の位が増えたときだけ、短いパルスが付く', function () {
-    frame();
-    el('liveInt').classList.remove('is-tick'); // 直前の描画ぶんをリセットしてから見る
-    var before = el('liveInt').textContent;
-
-    frame(); // ごく短い間隔では、円の位が変わらないこともある
-    if (el('liveInt').textContent === before) {
-      ok(!el('liveInt').classList.contains('is-tick'), '値が変わっていないのにパルスが付いている');
-    }
-
-    el('liveInt').classList.remove('is-tick');
-    S.state.clockInAt -= 2 * 60 * 60 * 1000; // 出勤時刻を2時間分さかのぼらせ、金額を確実に動かす
-    refresh(); // heavy() を通して ctx を作り直させてから描画する(frame() だけでは反映されない)
-    ok(el('liveInt').textContent !== before, '金額が動いていない(テストの前提が崩れている)');
-    ok(el('liveInt').classList.contains('is-tick'), '値が変わったのにパルスが付いていない');
-  });
-
   test('打刻: 確認をキャンセルすると何も起きない', function () {
     el('breakBtn').fire('click');
     eq(el('confirmText').textContent, '休憩を開始しますか?');
@@ -204,17 +187,17 @@
     eq(S.state.breaks.length, 2, '休憩は何度でも記録できる');
   });
 
-  test('手動: メイン数値・今日・今月が描画される', function () {
+  test('手動: メイン数値・今週・今月が描画される', function () {
     frame();
     ok(/^[0-9,]+$/.test(el('liveInt').textContent), 'メイン金額が数字になっていない: ' + el('liveInt').textContent);
     ok(/^\.\d\d$/.test(el('liveDec').textContent), '小数部が描画されていない: ' + el('liveDec').textContent);
-    ok(el('todayAmount').textContent.indexOf('¥') === 0, '今日の金額が円表示になっていない');
+    ok(el('weekAmount').textContent.indexOf('¥') === 0, '今週の金額が円表示になっていない');
     ok(el('monthAmount').textContent.indexOf('¥') === 0, '今月の金額が円表示になっていない');
     // 実働は「労働時間 / 所定労働時間」で出す
     ok(/^\d+:\d\d \/ \d+:\d\d$/.test(el('monthSub').textContent),
       '今月が 労働時間 / 所定労働時間 になっていない: ' + el('monthSub').textContent);
-    ok(/^\d+:\d\d( \/ \d+:\d\d)?$/.test(el('todaySub').textContent),
-      '今日の表示が想定と違う: ' + el('todaySub').textContent);
+    ok(/^\d+:\d\d \/ \d+:\d\d$/.test(el('weekSub').textContent),
+      '今週が 労働時間 / 所定労働時間 になっていない: ' + el('weekSub').textContent);
     ok(el('liveMeta').textContent.indexOf('出勤') >= 0, '出勤時刻が表示されていない');
   });
 

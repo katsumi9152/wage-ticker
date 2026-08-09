@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WageTicker">
-<link rel="stylesheet" href="styles.css?v=20260810f">
+<link rel="stylesheet" href="styles.css?v=20260810g">
 </head>
 <body>
 
@@ -91,12 +91,12 @@
       <div class="hero-meta" id="liveMeta">出勤していません</div>
     </section>
 
-    <!-- ②今日 ③今月(設定でそれぞれ隠せる) -->
+    <!-- ②今週 ③今月(設定でそれぞれ隠せる) -->
     <section class="stats" id="statsSection">
-      <div class="card stat" id="todayCard">
-        <div class="stat-label">今日</div>
-        <div class="amount amount--sub" id="todayAmount">¥0</div>
-        <div class="stat-sub" id="todaySub">0:00</div>
+      <div class="card stat" id="weekCard">
+        <div class="stat-label">今週</div>
+        <div class="amount amount--sub" id="weekAmount">¥0</div>
+        <div class="stat-sub" id="weekSub">0:00</div>
       </div>
 
       <div class="card stat" id="monthCard">
@@ -254,9 +254,9 @@
 
     <div class="field">
       <span class="field-label">メイン画面に表示するもの</span>
-      <!-- 画面では今日と今月が横に並ぶので、チェックも横並びにする -->
+      <!-- 画面では今週と今月が横に並ぶので、チェックも横並びにする -->
       <div class="check-row">
-        <label class="check"><input id="setShowToday" type="checkbox"> 今日</label>
+        <label class="check"><input id="setShowWeek" type="checkbox"> 今週</label>
         <label class="check"><input id="setShowMonth" type="checkbox"> 今月</label>
       </div>
       <span class="hint">秒単位の金額と、今月の法定時間外は常に表示します。</span>
@@ -373,13 +373,13 @@
   </div>
 </dialog>
 
-<script src="src/constants.js?v=20260810f"></script>
-<script src="src/time.js?v=20260810f"></script>
-<script src="src/period.js?v=20260810f"></script>
-<script src="src/holidays.js?v=20260810f"></script>
-<script src="src/wage.js?v=20260810f"></script>
-<script src="src/aggregate.js?v=20260810f"></script>
-<script src="src/storage.js?v=20260810f"></script>
-<script src="src/app.js?v=20260810f"></script>
+<script src="src/constants.js?v=20260810g"></script>
+<script src="src/time.js?v=20260810g"></script>
+<script src="src/period.js?v=20260810g"></script>
+<script src="src/holidays.js?v=20260810g"></script>
+<script src="src/wage.js?v=20260810g"></script>
+<script src="src/aggregate.js?v=20260810g"></script>
+<script src="src/storage.js?v=20260810g"></script>
+<script src="src/app.js?v=20260810g"></script>
 </body>
 </html>

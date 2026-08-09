@@ -311,6 +311,43 @@
     near(frames.legalFrameMinutes, (40 * 30 * 60) / 7);
   });
 
+  // ------------------------------------------------------------ 今週の集計
+
+  function fakeDay(dateKey, minutes, amount) {
+    var b = W.emptyBreakdown();
+    b.workedMinutes = minutes;
+    b.amount = amount;
+    return { date: dateKey, breakdown: b };
+  }
+
+  test('週集計: 日曜始まり7日間の範囲を返す', function () {
+    var base = day(2026, 3, 4); // 曜日は問わない(weekRangeの算出だけを見る)
+    var range = A.weekRange(base);
+    eq(range.start.getDay(), 0, '週の開始が日曜になっていない');
+    eq(T.dateKey(range.end), T.dateKey(T.addDays(range.start, 6)), '週の終わりが開始+6日になっていない');
+    ok(base.getTime() >= range.start.getTime() && base.getTime() <= range.end.getTime(),
+      '基準日が算出した週の範囲に入っていない');
+  });
+
+  test('週集計: 週の範囲外の日は合算しない', function () {
+    var base = day(2026, 3, 4);
+    var range = A.weekRange(base);
+    var inWeekKey = T.dateKey(range.start); // 週の初日
+    var outOfWeekKey = T.dateKey(T.addDays(range.start, -1)); // 前の週の最終日
+    var days = [fakeDay(inWeekKey, 60, 1000), fakeDay(outOfWeekKey, 999, 999999)];
+    var summary = A.weekSummary(days, base, baseSettings(), {});
+    eq(summary.totals.workedMinutes, 60, '週の範囲外の日まで合算されている');
+    eq(summary.totals.amount, 1000);
+  });
+
+  test('週集計: 所定労働時間は週内の所定労働日数 × 1日の所定労働時間', function () {
+    var base = day(2026, 3, 4);
+    var s = baseSettings({ dailyScheduledHours: 8, workdays: [1, 2, 3, 4, 5] }); // 月〜金
+    var summary = A.weekSummary([], base, s, {});
+    // 日曜始まり7日間には、どの週でも月〜金がちょうど1回ずつ含まれる
+    eq(summary.scheduledMinutes, 5 * 8 * 60, '週の所定労働時間が合っていない(平日5日 × 8時間)');
+  });
+
   // -------------------------------------------------------------- 祝日
 
   test('祝日: 既定(オン)では総枠の所定労働日数から祝日が除かれる', function () {

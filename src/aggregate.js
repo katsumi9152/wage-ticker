@@ -62,6 +62,31 @@
     return count;
   }
 
+  /** 「今週」(日曜始まり)の範囲を返す。曜日の並びはカレンダー画面と揃える。 */
+  function weekRange(date) {
+    var start = new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
+    var end = T.addDays(start, 6);
+    return { start: start, end: end };
+  }
+
+  /**
+   * 今週(日曜始まり)の集計。清算期間の頭で aggregatePeriod が作った days から
+   * 拾うだけなので、週の始まりが前の清算期間にまたがる場合、そのぶんの日は
+   * (days に無いため)含まれない。締め日の直後、数日だけ起こりうる制約。
+   */
+  function weekSummary(days, now, settings, calendar) {
+    var range = weekRange(now);
+    var startKey = T.dateKey(range.start);
+    var endKey = T.dateKey(range.end);
+    var totals = W.emptyBreakdown();
+    for (var i = 0; i < days.length; i++) {
+      if (days[i].date >= startKey && days[i].date <= endKey) W.addBreakdown(totals, days[i].breakdown);
+    }
+    var scheduledMinutes = Number(settings.dailyScheduledHours || 0) * 60 *
+      countScheduledWorkDays(range, settings, calendar);
+    return { totals: totals, scheduledMinutes: scheduledMinutes, startKey: startKey, endKey: endKey };
+  }
+
   /** 所定労働時間の総枠・法定労働時間の総枠(SPEC 3.2) */
   function computeFrames(period, settings, calendar) {
     var scheduledWorkDays = countScheduledWorkDays(period, settings, calendar);
@@ -322,6 +347,8 @@
     judgeLegalHoliday: judgeLegalHoliday,
     countScheduledWorkDays: countScheduledWorkDays,
     computeFrames: computeFrames,
+    weekRange: weekRange,
+    weekSummary: weekSummary,
     aggregatePeriod: aggregatePeriod,
     computeLive: computeLive,
     prefixTotals: prefixTotals,
