@@ -28,13 +28,21 @@
 <script src="../src/constants.js"></script>
 <script src="../src/time.js"></script>
 <script src="../src/period.js"></script>
+<script src="../src/holidays.js"></script>
 <script src="../src/wage.js"></script>
 <script src="../src/aggregate.js"></script>
 <script src="../src/storage.js"></script>
 <script src="tests.js"></script>
+<script src="holidays.js"></script>
 <script>
 (function () {
-  var r = WT.tests.run();
+  var r1 = WT.tests.run();
+  var r2 = WT.holidayTests.run();
+  var r = {
+    results: r1.results.concat(r2.results),
+    passed: r1.passed + r2.passed,
+    total: r1.total + r2.total,
+  };
   var sum = document.getElementById('summary');
   sum.textContent = r.passed + ' / ' + r.total + ' passed' + (r.passed === r.total ? '  ✔' : '  ✘');
   sum.className = 'summary ' + (r.passed === r.total ? 'pass' : 'fail');

@@ -85,20 +85,22 @@ function Invoke-Suite {
   return @{ Passed = $passed; Total = $total; Crashed = $false }
 }
 
-$pure = @('src\constants.js', 'src\time.js', 'src\period.js', 'src\wage.js', 'src\aggregate.js', 'src\storage.js')
+$pure = @('src\constants.js', 'src\time.js', 'src\period.js', 'src\holidays.js', 'src\wage.js', 'src\aggregate.js', 'src\storage.js')
 
 try {
   $a = Invoke-Suite -Title '計算ロジック (test/tests.js)' `
     -Files (@('test\es3-shim.js') + $pure + @('test\tests.js')) -Entry 'WT.tests'
+  $c = Invoke-Suite -Title '祝日 (test/holidays.js)' `
+    -Files (@('test\es3-shim.js') + $pure + @('test\holidays.js')) -Entry 'WT.holidayTests'
   $b = Invoke-Suite -Title '画面まわりの通し確認 (test/smoke.js)' `
     -Files (@('test\es3-shim.js', 'test\dom-stub.js') + $pure + @('src\app.js', 'test\smoke.js')) -Entry 'WT.smoke'
 } finally {
   Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$passed = $a.Passed + $b.Passed
-$total = $a.Total + $b.Total
-$failed = ($total - $passed) + $(if ($a.Crashed -or $b.Crashed) { 1 } else { 0 })
+$passed = $a.Passed + $b.Passed + $c.Passed
+$total = $a.Total + $b.Total + $c.Total
+$failed = ($total - $passed) + $(if ($a.Crashed -or $b.Crashed -or $c.Crashed) { 1 } else { 0 })
 
 Write-Host ''
 if ($failed -eq 0 -and $total -gt 0) {
