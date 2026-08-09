@@ -171,6 +171,19 @@
           workedMinutes: bdLeave.workedMinutes,
           breakdown: bdLeave,
         };
+      } else if (entry && entry.type === 'half_day') {
+        // 半休(半日有給): 区切り時刻を境に、半分は有給扱い・半分は実勤務として計算する
+        var boundaryMinutes = T.parseTimeToMinutes(settings.halfDayBoundary) ||
+          T.parseTimeToMinutes(WT.DEFAULT_SETTINGS.halfDayBoundary);
+        var bdHalf = W.allocateHalfDay(cursor, d, entry.halfKind || 'pm', boundaryMinutes, settings, rates);
+        record = {
+          date: key,
+          kind: 'half_day',
+          halfKind: entry.halfKind || 'pm',
+          isLegalHoliday: false,
+          workedMinutes: bdHalf.workedMinutes,
+          breakdown: bdHalf,
+        };
       } else if (entry && entry.type === 'company_holiday') {
         // 打刻のない会社休日: 所定労働日から除外。未入力日にもしない。
         continue;

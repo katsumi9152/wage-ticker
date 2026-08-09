@@ -18,7 +18,8 @@
     if (actual !== expected) fail((msg || '') + ' — 期待値 ' + expected + ' / 実際 ' + actual);
   }
   function near(actual, expected, tol, msg) {
-    if (Math.abs(actual - expected) > (tol === undefined ? 1e-6 : tol)) {
+    // NaN同士は Math.abs(NaN) > tol が常に false になり素通りしてしまうため、明示的に弾く
+    if (isNaN(actual) || Math.abs(actual - expected) > (tol === undefined ? 1e-6 : tol)) {
       fail((msg || '') + ' — 期待値 ' + expected + ' ± ' + tol + ' / 実際 ' + actual);
     }
   }
@@ -426,6 +427,27 @@
     near(agg.totals.workedMinutes, 7 * 450, 1e-9, '合計時間は変わらない');
     near(agg.totals.autoFilledMinutes, 6 * 450);
     near(agg.totals.night.minutes, 0);
+  });
+
+  test('半休: 昼休憩を控除せず、半分は有給・半分は実勤務として計上する', function () {
+    var settings = baseSettings(); // schedule 09:00〜17:30、区切りは既定の13:00
+    var calendar = { '2026-09-03': { type: 'half_day', halfKind: 'pm' } };
+    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
+    var agg = A.aggregatePeriod({ period: period, settings: settings, calendar: calendar, activeSession: null, now: day(2026, 9, 10) });
+    eq(agg.autoFilledDays, 6, '半休の日は未入力に数えない');
+    // 09:00〜17:30(510分)を、昼休憩の控除なしで丸ごと計上する(通常の1日分450分より多い)
+    near(agg.totals.workedMinutes, 6 * 450 + 510);
+  });
+
+  test('半休: 午前休・午後休のどちらでも合計時間は変わらない', function () {
+    var s = baseSettings();
+    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
+    var frames = A.computeFrames(period, s, {});
+    var rates = W.deriveRates(s);
+    var bdAm = W.allocateHalfDay(W.createCursor(frames), day(2026, 9, 3), 'am', 13 * 60, s, rates);
+    var bdPm = W.allocateHalfDay(W.createCursor(frames), day(2026, 9, 3), 'pm', 13 * 60, s, rates);
+    near(bdAm.workedMinutes, 510, 1e-9, '午前休(09:00〜17:30をまるごと計上)');
+    eq(bdAm.workedMinutes, bdPm.workedMinutes, '午前休・午後休で合計は変わらない');
   });
 
   test('6.1 会社休日は所定労働日から外れ、未入力にもならない', function () {

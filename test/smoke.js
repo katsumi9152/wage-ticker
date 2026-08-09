@@ -16,7 +16,7 @@
   function ok(cond, msg) { if (!cond) { fail(msg || '条件を満たしていません'); } }
   function eq(a, b, msg) { if (a !== b) { fail((msg || '') + ' — 期待値 ' + b + ' / 実際 ' + a); } }
   function near(a, b, tol, msg) {
-    if (Math.abs(a - b) > tol) { fail((msg || '') + ' — 期待値 ' + b + ' ± ' + tol + ' / 実際 ' + a); }
+    if (isNaN(a) || Math.abs(a - b) > tol) { fail((msg || '') + ' — 期待値 ' + b + ' ± ' + tol + ' / 実際 ' + a); }
   }
 
   var S = WT.storage.Store;
@@ -346,6 +346,26 @@
     var cells = el('calGrid').innerHTML.match(/cal-cell/g) || [];
     ok(cells.length >= 28, 'カレンダーのセルが足りない: ' + cells.length);
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
+  });
+
+  test('カレンダー: 半休の日は専用の印になり、今月の集計にも反映される', function () {
+    S.calendar = {};
+    var now = new Date();
+    var key = WT.time.dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+    S.setDay(key, { type: 'half_day', halfKind: 'pm' });
+    refresh();
+
+    el('openCalendar').fire('click'); // 毎回「今月」に戻るので、月初(1日)は必ず表示範囲内
+    var cellHtml = el('calGrid').innerHTML;
+    var start = cellHtml.indexOf('data-date="' + key + '"');
+    ok(start >= 0, '対象の日のセルが描画されていない');
+    var end = cellHtml.indexOf('</button>', start);
+    var thisCell = cellHtml.slice(start, end >= 0 ? end : undefined);
+    ok(thisCell.indexOf('mk half') >= 0, '半休の印(half)が付いていない: ' + thisCell);
+
+    var yen = Number(el('monthAmount').textContent.replace(/[^\d]/g, ''));
+    ok(yen > 0, '半休の日が今月の金額に反映されていない');
+    S.calendar = {};
   });
 
   test('カレンダー: 祝日は専用の印になり、タップすると名前が出る', function () {

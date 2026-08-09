@@ -398,6 +398,55 @@
   }
 
   /**
+   * 半休(半日有給)の1日ぶんを計算する。区切り時刻を境に、片方は有給扱い
+   * (所定内として積み上げ)、もう片方は標準勤務スケジュールどおりに実際に
+   * 勤務したものとして計算する。半日ぶんの勤務なので、昼休憩の自動控除
+   * (sessionWork)は行わない。
+   *
+   * @param {'am'|'pm'} halfKind 'am' なら午前が有給・午後が勤務。'pm' はその逆
+   * @param {number} boundaryMinutes 区切り時刻(0:00からの分)
+   */
+  function allocateHalfDay(cursor, date, halfKind, boundaryMinutes, settings, rates) {
+    var scheduleStartMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.start);
+    var scheduleEndMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.end);
+    var leaveRange, workRange;
+    if (halfKind === 'am') {
+      leaveRange = { start: scheduleStartMin, end: boundaryMinutes };
+      workRange = { start: boundaryMinutes, end: scheduleEndMin };
+    } else {
+      workRange = { start: scheduleStartMin, end: boundaryMinutes };
+      leaveRange = { start: boundaryMinutes, end: scheduleEndMin };
+    }
+
+    var breakdown = emptyBreakdown();
+    var leaveMinutes = Math.max(0, leaveRange.end - leaveRange.start);
+    if (leaveMinutes > 0) {
+      addBreakdown(breakdown, allocateSegments(cursor, [{ minutes: leaveMinutes, isNight: false }], {
+        isLegalHoliday: false,
+        baseHourlyRate: rates.baseHourlyRate,
+        autoFilled: false,
+      }));
+    }
+
+    if (workRange.end > workRange.start) {
+      var startMs = T.timeOnDate(date, workRange.start);
+      var endMs = T.timeOnDate(date, workRange.end);
+      // 半休のため昼休憩は控除しない。splitByNight は {startMs,endMs} 形式なので
+      // allocateSegments が期待する {minutes,isNight} に変換する(sessionWorkと同じ変換)。
+      var segments = T.splitByNight(startMs, endMs).map(function (s) {
+        return { minutes: (s.endMs - s.startMs) / T.MS_PER_MINUTE, isNight: s.isNight };
+      });
+      addBreakdown(breakdown, allocateSegments(cursor, segments, {
+        isLegalHoliday: false,
+        baseHourlyRate: rates.baseHourlyRate,
+        autoFilled: false,
+      }));
+    }
+
+    return breakdown;
+  }
+
+  /**
    * 現時点の限界単価(1ミリ秒あたりいくら増えているか)。
    * リアルタイム描画のなめらかさと、割増時間帯の色味変化(SPEC 1.2)に使う。
    */
@@ -437,6 +486,7 @@
     cloneCursor: cloneCursor,
     allocateSegments: allocateSegments,
     allocateScheduledDay: allocateScheduledDay,
+    allocateHalfDay: allocateHalfDay,
     calcEarnings: calcEarnings,
     isOnBreakAt: isOnBreakAt,
     hasOpenBreak: hasOpenBreak,

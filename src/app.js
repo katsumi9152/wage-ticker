@@ -771,6 +771,7 @@
     fillSelect('setBreakEnd', timeOptions());
     fillSelect('setScheduleStart', timeOptions());
     fillSelect('setScheduleEnd', timeOptions());
+    fillSelect('setHalfDayBoundary', timeOptions());
 
     var closing = $('setClosingDay');
     var opts = '<option value="last">末日</option>';
@@ -867,6 +868,7 @@
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
     setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
+    setSelectValue('setHalfDayBoundary', s.halfDayBoundary || WT.DEFAULT_SETTINGS.halfDayBoundary);
 
     refreshDailyHours();
     dlg.showModal();
@@ -902,6 +904,7 @@
     s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
+    s.halfDayBoundary = $('setHalfDayBoundary').value || WT.DEFAULT_SETTINGS.halfDayBoundary;
 
     store.saveSettings();
     store.state.configured = true;
@@ -1001,6 +1004,7 @@
       var mark = '';
       if (entry && (entry.clockIn || entry.coveredBy)) mark = 'work';
       else if (entry && entry.type === 'paid_leave') mark = 'leave';
+      else if (entry && entry.type === 'half_day') mark = 'half';
       else if (entry && entry.type === 'company_holiday') mark = entry.holidayKind === 'legal' ? 'legal' : 'scheduled';
       else if (key < todayKey && A.isScheduledWorkDay(date, store.settings, store.calendar)) mark = 'auto';
       else if (!A.isScheduledWorkDay(date, store.settings, store.calendar)) {
@@ -1073,6 +1077,11 @@
       if (!btn) return;
       selectSeg($('dayHolidayKind'), btn);
     });
+    $('dayHalfKind').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-half]');
+      if (!btn) return;
+      selectSeg($('dayHalfKind'), btn);
+    });
     $('dayCancel').addEventListener('click', function () { $('dayDialog').close(); });
     $('daySave').addEventListener('click', saveDayDialog);
     /*
@@ -1108,6 +1117,7 @@
     var kind = 'none';
     if (entry && entry.clockIn) kind = 'work';
     else if (entry && entry.type === 'paid_leave') kind = 'paid_leave';
+    else if (entry && entry.type === 'half_day') kind = 'half_day';
     else if (entry && entry.type === 'company_holiday') kind = 'company_holiday';
 
     var kindBtns = $('dayKind').querySelectorAll('button[data-kind]');
@@ -1120,6 +1130,12 @@
     var hkBtns = $('dayHolidayKind').querySelectorAll('button[data-holiday]');
     for (var j = 0; j < hkBtns.length; j++) {
       hkBtns[j].classList.toggle('is-on', hkBtns[j].getAttribute('data-holiday') === hk);
+    }
+
+    var halfKind = (entry && entry.halfKind) || 'pm';
+    var halfBtns = $('dayHalfKind').querySelectorAll('button[data-half]');
+    for (var k = 0; k < halfBtns.length; k++) {
+      halfBtns[k].classList.toggle('is-on', halfBtns[k].getAttribute('data-half') === halfKind);
     }
 
     if (entry && entry.clockIn) {
@@ -1156,6 +1172,7 @@
   function syncDayRows() {
     var kind = segValue($('dayKind'), 'data-kind');
     $('dayWorkRow').hidden = kind !== 'work';
+    $('dayHalfRow').hidden = kind !== 'half_day';
     $('dayHolidayRow').hidden = kind !== 'company_holiday';
   }
 
@@ -1168,6 +1185,8 @@
       store.setDay(key, null);
     } else if (kind === 'paid_leave') {
       store.setDay(key, { type: 'paid_leave' });
+    } else if (kind === 'half_day') {
+      store.setDay(key, { type: 'half_day', halfKind: segValue($('dayHalfKind'), 'data-half') || 'pm' });
     } else if (kind === 'company_holiday') {
       store.setDay(key, { type: 'company_holiday', holidayKind: segValue($('dayHolidayKind'), 'data-holiday') || 'scheduled' });
     } else {
