@@ -9,7 +9,7 @@
  * 事前に決め打ちのファイル一覧をキャッシュするのではなく、実際に読み込まれた
  * ものをそのつどキャッシュに積む(あとからファイルが増減しても書き換え不要)。
  */
-var CACHE_NAME = 'wageticker-v1';
+var CACHE_NAME = 'wageticker-v2';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -32,7 +32,10 @@ self.addEventListener('fetch', function (event) {
   if (url.origin !== self.location.origin) return; // 他サイトへのリクエストには関与しない
 
   event.respondWith(
-    fetch(event.request)
+    // cache: 'reload' でブラウザの通常キャッシュを素通りし、必ず本当の通信を試みる。
+    // これが無いと、GitHub Pages 側の Cache-Control(10分)に引っかかって、
+    // 「オンラインなのに古いまま」になることがある。
+    fetch(event.request, { cache: 'reload' })
       .then(function (response) {
         var copy = response.clone();
         caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });

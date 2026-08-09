@@ -1085,6 +1085,16 @@
     });
     $('dayCancel').addEventListener('click', function () { $('dayDialog').close(); });
     $('daySave').addEventListener('click', saveDayDialog);
+    /*
+     * dayDialog はカレンダーの上に重ねて開く(2重 showModal)と、
+     * 環境によっては閉じたあとカレンダー側がオーバーレイとして
+     * 描画されなくなり、本文の下に張り付いたまま消えなくなることがある。
+     * カレンダーを一旦閉じてから開き、dayDialog が閉じたら再表示する。
+     */
+    $('dayDialog').addEventListener('close', function () {
+      renderCalendar();
+      $('calendarDialog').showModal();
+    });
   }
 
   function selectSeg(container, btn) {
@@ -1149,6 +1159,7 @@
     }
 
     syncDayRows();
+    $('calendarDialog').close();
     $('dayDialog').showModal();
   }
 
