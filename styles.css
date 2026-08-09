@@ -223,7 +223,7 @@ body { min-height: 100svh; }
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 22px 16px 20px;
+  padding: 26px 16px 22px;
   text-align: center;
   /* 加算中の区分によって差し色が変わる(既定は所定内) */
   --tone: var(--cyan);
@@ -276,7 +276,7 @@ body { min-height: 100svh; }
 
 /* ------------------------------------------------- 今月の法定時間外 */
 
-.otcard { padding: 14px 16px 13px; }
+.otcard { padding: 15px 16px 14px; }
 .ot-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -306,7 +306,7 @@ body { min-height: 100svh; }
 }
 /* ------------------------------------------------------ 先月との比較 */
 
-.compare { padding: 14px 16px 13px; }
+.compare { padding: 15px 16px 14px; display: flex; flex-direction: column; gap: 4px; }
 .hbar-row {
   display: flex;
   align-items: center;
@@ -367,12 +367,17 @@ body { min-height: 100svh; }
 }
 
 .stat {
-  padding: 14px 16px 13px;
+  padding: 15px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  /* 金額は桁を比べやすいよう右寄せにする */
+  align-items: flex-end;
+  text-align: right;
 }
+.stat .stat-label { align-self: flex-start; }
+.stat .stat-sub { justify-content: flex-end; }
 .stat-label {
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -484,8 +489,8 @@ body { min-height: 100svh; }
 .actionbar {
   display: flex;
   align-items: stretch;
-  gap: 6px;
-  padding: 8px;
+  gap: 8px;
+  padding: 10px;
 }
 
 .act {
@@ -496,11 +501,15 @@ body { min-height: 100svh; }
   background: transparent;
   color: var(--muted);
   border-radius: var(--radius-sm);
-  padding: 8px 4px;
+  /* 押しやすいよう、少し縦長のタップ領域にする */
+  padding: 14px 6px 12px;
+  min-height: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 6px;
+  background: var(--card-2);
   font-family: var(--sans);
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -509,16 +518,14 @@ body { min-height: 100svh; }
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.act:active { background: var(--card-2); }
+.act:active { transform: translateY(1px); }
 .act[hidden] { display: none; }
-.act--in { color: var(--green); }
-.act--out { color: var(--blue); }
-.act--break { color: var(--muted); }
-.act--break.is-on { color: var(--amber); }
-.act--ot { color: var(--amber); }
-.act--in, .act--out, .act--ot, .act--break { flex: 1.15 1 0; }
-.act[disabled] { color: var(--faint); opacity: 0.4; cursor: default; }
-.act-sep { width: 1px; background: var(--line); margin: 6px 4px; flex: none; }
+.act--in { color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); }
+.act--out { color: var(--blue); border: 1px solid color-mix(in srgb, var(--blue) 32%, transparent); }
+.act--break { color: var(--muted); border: 1px solid var(--line); }
+.act--break.is-on { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.act--ot { color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); }
+.act[disabled] { color: var(--faint); opacity: 0.35; cursor: default; }
 
 /* ------------------------------------------------------------- sheets */
 

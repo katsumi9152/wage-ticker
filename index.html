@@ -7,6 +7,11 @@
 <meta name="color-scheme" content="dark">
 <meta name="description" content="出勤するだけで金額と労働時間がリアルタイムに積み上がる給料メーター">
 <title>WageTicker</title>
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WageTicker">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -22,7 +27,11 @@
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3.8" y="5.2" width="16.4" height="15" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     </button>
     <button class="icon-btn" id="openSettings" type="button" aria-label="設定">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v2.2M12 18.6v2.2M3.2 12h2.2M18.6 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <!-- 太陽アイコンと紛らわしいので、歯車ではなくスライダーの形にしている -->
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M3.6 7h8.2M16.4 7h4M3.6 12h3.2M11.4 12h9M3.6 17h8.2M16.4 17h4"/>
+        <circle cx="14.1" cy="7" r="2.3"/><circle cx="9.1" cy="12" r="2.3"/><circle cx="14.1" cy="17" r="2.3"/>
+      </svg>
     </button>
     <button class="icon-btn" id="themeToggle" type="button" aria-label="ライト / ダークを切り替え">
       <svg class="ic-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
