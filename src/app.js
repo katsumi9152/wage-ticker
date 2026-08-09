@@ -195,10 +195,16 @@
       W.addBreakdown(todayTotal, live.breakdown);
     }
 
+    // 実働は「労働時間 / 所定労働時間」で、どこまで来ているかが分かるようにする
+    var dailyScheduled = Number(ctx.settings.dailyScheduledHours || 0) * 60;
+    var todayIsWorkday = A.isScheduledWorkDay(ctx.now, ctx.settings, store.calendar);
+
     $('todayAmount').textContent = fmtYen(todayTotal.amount);
-    $('todaySub').textContent = fmtHours(todayTotal.workedMinutes);
+    $('todaySub').textContent = fmtHours(todayTotal.workedMinutes) +
+      (todayIsWorkday ? ' / ' + fmtHours(dailyScheduled) : '');
     $('monthAmount').textContent = fmtYen(monthTotal.amount);
-    $('monthSub').textContent = fmtHours(monthTotal.workedMinutes);
+    $('monthSub').textContent = fmtHours(monthTotal.workedMinutes) +
+      ' / ' + fmtHours(ctx.agg.frames.scheduledFrameMinutes);
 
     // 前月同時点との差(SPEC 7.2)
     var diffEl = $('monthDiff');

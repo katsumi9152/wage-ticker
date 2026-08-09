@@ -176,6 +176,11 @@
     ok(/^\.\d\d$/.test(el('liveDec').textContent), '小数部が描画されていない: ' + el('liveDec').textContent);
     ok(el('todayAmount').textContent.indexOf('¥') === 0, '今日の金額が円表示になっていない');
     ok(el('monthAmount').textContent.indexOf('¥') === 0, '今月の金額が円表示になっていない');
+    // 実働は「労働時間 / 所定労働時間」で出す
+    ok(/^\d+:\d\d \/ \d+:\d\d$/.test(el('monthSub').textContent),
+      '今月が 労働時間 / 所定労働時間 になっていない: ' + el('monthSub').textContent);
+    ok(/^\d+:\d\d( \/ \d+:\d\d)?$/.test(el('todaySub').textContent),
+      '今日の表示が想定と違う: ' + el('todaySub').textContent);
     ok(el('liveMeta').textContent.indexOf('出勤') >= 0, '出勤時刻が表示されていない');
   });
 
