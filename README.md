@@ -16,9 +16,20 @@ pwsh -File serve.ps1 -Any       # 表示された http://<PCのIP>:8765/ をス�
 
 ## テスト
 
-給与計算の純粋関数(SPEC 3〜8章)のユニットテスト 34 件が `test/tests.js` にあります。
+Node もインストールも不要です。2 種類あります。
 
-`test/index.html` をブラウザで開くと実行され、PASS/FAIL が一覧表示されます(Node 不要)。
+```powershell
+pwsh -File test\run.ps1     # 全部まとめて実行(49件)
+```
+
+| スイート | 件数 | 内容 |
+|---|---|---|
+| `test/tests.js` | 34 | 給与計算の純粋関数(SPEC 3〜8章)。締め日、休憩控除、深夜、区分と割増、有給・未入力日、前月比較、36協定、ロールオーバー |
+| `test/smoke.js` | 15 | `src/app.js` を DOM の代役の上で起動し、出勤→描画→内訳→退勤、自動モードの4分岐、覗き見防止、保存までを通しで確認 |
+
+`test/index.html` をブラウザで開くと、1 つめのスイート(34件)だけがその場で走ります。
+
+`test/run.ps1` は Windows 同梱の Windows Script Host(cscript)で JavaScript を実行しています。そのエンジンは ES3 相当なので、`test/es3-shim.js` で不足分を補い、`test/dom-stub.js` で最小限の DOM を用意しています。いずれもテスト専用で、アプリ本体には含まれません。
 
 ## 構成
 
