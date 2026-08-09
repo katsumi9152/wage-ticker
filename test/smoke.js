@@ -306,6 +306,32 @@
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
   });
 
+  test('カレンダー: 先月から3ヶ月先までしか動かせない', function () {
+    var now = new Date();
+    function label(offset) {
+      var d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      return d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+    }
+
+    el('openCalendar').fire('click');
+    eq(el('calTitle').textContent, label(0), '開いたら今月から始まる');
+
+    // 過去は1ヶ月まで
+    el('calPrev').fire('click');
+    eq(el('calTitle').textContent, label(-1));
+    ok(el('calPrev').disabled === true, '先月より前へは進めないようにする');
+    el('calPrev').fire('click');
+    eq(el('calTitle').textContent, label(-1), '先月より前に行けてしまっている');
+
+    // 未来は3ヶ月まで
+    for (var i = 0; i < 6; i++) el('calNext').fire('click');
+    eq(el('calTitle').textContent, label(3), '3ヶ月先で止まっていない');
+    ok(el('calNext').disabled === true, '3ヶ月先より後へは進めないようにする');
+
+    el('openCalendar').fire('click');
+    eq(el('calTitle').textContent, label(0), '開き直したら今月に戻る');
+  });
+
   test('カレンダー: 見出しと空きマスが日曜始まりで揃う', function () {
     var head = el('calHead').innerHTML;
     var labels = head.match(/>(.)</g) || [];

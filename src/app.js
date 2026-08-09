@@ -879,11 +879,11 @@
       $('calendarDialog').showModal();
     });
     $('calPrev').addEventListener('click', function () {
-      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
+      calMonth = clampCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1));
       renderCalendar();
     });
     $('calNext').addEventListener('click', function () {
-      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
+      calMonth = clampCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1));
       renderCalendar();
     });
     $('calGrid').addEventListener('click', function (e) {
@@ -893,10 +893,36 @@
     });
   }
 
+  /**
+   * 表示できる月の範囲。詳細な記録を持つのが今月と先月なので過去は1ヶ月、
+   * 予定を先に入れられるよう未来は3ヶ月まで(合計5ヶ月)。
+   */
+  var CAL_MONTHS_BACK = 1;
+  var CAL_MONTHS_AHEAD = 3;
+
+  function calBounds() {
+    var t = new Date();
+    return {
+      min: new Date(t.getFullYear(), t.getMonth() - CAL_MONTHS_BACK, 1),
+      max: new Date(t.getFullYear(), t.getMonth() + CAL_MONTHS_AHEAD, 1),
+    };
+  }
+
+  function clampCalMonth(d) {
+    var b = calBounds();
+    if (d.getTime() < b.min.getTime()) return b.min;
+    if (d.getTime() > b.max.getTime()) return b.max;
+    return d;
+  }
+
   function renderCalendar() {
+    calMonth = clampCalMonth(calMonth);
     var y = calMonth.getFullYear();
     var m = calMonth.getMonth();
+    var bounds = calBounds();
     $('calTitle').textContent = y + '年' + (m + 1) + '月';
+    $('calPrev').disabled = calMonth.getTime() <= bounds.min.getTime();
+    $('calNext').disabled = calMonth.getTime() >= bounds.max.getTime();
 
     var first = new Date(y, m, 1);
     var days = T.daysInMonth(y, m);
