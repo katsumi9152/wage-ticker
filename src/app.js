@@ -382,7 +382,7 @@
         var parts = fmtYenParts(live.breakdown.amount);
         $('liveInt').textContent = parts.int;
         $('liveDec').textContent = parts.dec;
-        $('tickerLabel').textContent = ctx.settings.autoMode ? '今の勤務(自動)' : '今の勤務';
+        $('tickerLabel').textContent = ctx.settings.autoMode ? '今日の勤務(自動)' : '今日の勤務';
         $('liveMeta').textContent = liveMetaText(live);
         hero.classList.add('is-live');
         setTone(hero, live);
@@ -425,7 +425,7 @@
     }
     return {
       amount: 0,
-      label: '今の勤務',
+      label: '今日の勤務',
       meta: store.settings.autoMode ? '勤務予定時間外です' : '出勤していません',
     };
   }
