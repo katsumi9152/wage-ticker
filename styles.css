@@ -640,7 +640,9 @@ body { min-height: 100svh; }
  * 下端が見切れる不具合があったため flex に直した。
  */
 dialog.sheet {
-  width: min(540px, 100%);
+  /* メイン画面のカードは .app の左右 14px の余白ぶん内側にある。
+     ダイアログだけ画面端いっぱいだと横幅が違って見えるので、同じだけ余白を持たせる。 */
+  width: min(540px, calc(100% - 28px));
   max-height: 92svh;
   margin: auto auto 0;
   padding: 0;
