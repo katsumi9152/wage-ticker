@@ -214,6 +214,7 @@
       diffEl.hidden = true;
     }
 
+    renderVisibility();
     renderOvertime(monthTotal);
     renderCompare(monthTotal, ctx.prev
       ? A.prefixTotals(ctx.prev.days, ctx.prev.period.start, P.elapsedDays(ctx.period, ctx.now))
@@ -221,6 +222,16 @@
     renderStatus(live);
     renderActions();
     if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
+  }
+
+  /** 「今日」「今月」は設定で隠せる。片方だけなら横幅いっぱいに広げる。 */
+  function renderVisibility() {
+    var showToday = ctx.settings.showToday !== false;
+    var showMonth = ctx.settings.showMonth !== false;
+    $('todayCard').hidden = !showToday;
+    $('monthCard').hidden = !showMonth;
+    $('statsSection').hidden = !showToday && !showMonth;
+    $('statsSection').classList.toggle('is-single', showToday !== showMonth);
   }
 
   /**
@@ -813,6 +824,8 @@
     setSelectValue('setBreakStart', brk.start);
     setSelectValue('setBreakEnd', brk.end);
 
+    $('setShowToday').checked = s.showToday !== false;
+    $('setShowMonth').checked = s.showMonth !== false;
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
     setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
@@ -844,6 +857,8 @@
     s.legalHolidayWeekday = Number($('setLegalWeekday').value);
     s.workdays = workdays;
     s.breakWindow = { start: $('setBreakStart').value || '12:00', end: $('setBreakEnd').value || '13:00' };
+    s.showToday = $('setShowToday').checked;
+    s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
 

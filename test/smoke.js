@@ -65,6 +65,25 @@
     ok(el('cmpNowTotal').textContent.indexOf('¥') < 0, 'このグラフに金額は出さない');
   });
 
+  test('設定: 今日 / 今月はそれぞれ隠せる', function () {
+    S.settings.showToday = false;
+    refresh();
+    ok(el('todayCard').hidden === true, '今日を隠せていない');
+    ok(el('monthCard').hidden === false, '今月まで消えている');
+    ok(el('statsSection').classList.contains('is-single'), '片方だけのときは横幅いっぱいにする');
+
+    S.settings.showMonth = false;
+    refresh();
+    ok(el('statsSection').hidden === true, '両方オフなら枠ごと隠す');
+
+    S.settings.showToday = true;
+    S.settings.showMonth = true;
+    refresh();
+    ok(el('todayCard').hidden === false);
+    ok(el('monthCard').hidden === false);
+    ok(el('statsSection').hidden === false);
+  });
+
   test('今月の法定時間外と、45時間・60時間までの残りを数字で出す', function () {
     S.settings.monthlyBaseSalary = 300000;
     refresh();

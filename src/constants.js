@@ -99,6 +99,9 @@
     workdays: [1, 2, 3, 4, 5],
     /** 休憩時間帯。null なら一律 DEFAULT_BREAK_MINUTES を控除(SPEC 5.2) */
     breakWindow: { start: '12:00', end: '13:00' },
+    /** メイン画面に「今日」「今月」を出すか(秒単位の金額は常に表示) */
+    showToday: true,
+    showMonth: true,
     /** 自動モード(SPEC 5.3) */
     autoMode: false,
     /** 標準勤務スケジュール(自動モード時)。曜日は workdays を共用する。 */

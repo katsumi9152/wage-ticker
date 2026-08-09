@@ -375,6 +375,10 @@ body { min-height: 100svh; }
   grid-template-columns: 1fr 1fr;
   gap: var(--gap);
 }
+/* 片方だけ表示しているときは横幅いっぱいに使う */
+.stats.is-single { grid-template-columns: 1fr; }
+.stats[hidden] { display: none; }
+.stat[hidden] { display: none; }
 
 .stat {
   padding: 15px 16px 14px;
@@ -533,9 +537,6 @@ body { min-height: 100svh; }
 .act--in { color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); }
 .act--out { color: var(--blue); border: 1px solid color-mix(in srgb, var(--blue) 32%, transparent); }
 .act--break { color: var(--muted); border: 1px solid var(--line); }
-.act--break .ic-resume { display: none; }
-.act--break.is-on .ic-pause { display: none; }
-.act--break.is-on .ic-resume { display: block; }
 .act--break.is-on { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
 .act--ot { color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); }
 .act[disabled] { color: var(--faint); opacity: 0.35; cursor: default; }

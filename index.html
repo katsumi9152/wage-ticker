@@ -49,29 +49,25 @@
 
   <!-- 操作(手動: 出勤/退勤の2つだけ / 自動モード: 残業開始・終了のみ) -->
   <nav class="actionbar card">
-    <!-- 開始(▶)・停止(■)・一時停止(‖)で、カウンターの動きと対応させる -->
     <button class="act act--in" id="clockInBtn" type="button">
-      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-        <path d="M10.1 8.2 16 12l-5.9 3.8z" fill="currentColor"/>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6A1.7 1.7 0 0 0 6.2 19.5H10"/>
+        <path d="M14.5 8.2 18.8 12l-4.3 3.8M18 12H9.4"/>
       </svg>
       <span>出勤</span>
     </button>
     <button class="act act--out" id="clockOutBtn" type="button">
-      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-        <rect x="8.7" y="8.7" width="6.6" height="6.6" rx="1.4" fill="currentColor"/>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 4.5h3.8A1.7 1.7 0 0 1 19.5 6.2v11.6A1.7 1.7 0 0 1 17.8 19.5H14"/>
+        <path d="M9.5 8.2 5.2 12l4.3 3.8M6 12h8.6"/>
       </svg>
       <span>退勤</span>
     </button>
     <button class="act act--break" id="breakBtn" type="button">
-      <svg class="ic-pause" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-        <path d="M10.2 8.6v6.8M13.8 8.6v6.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-      </svg>
-      <svg class="ic-resume" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-        <path d="M10.1 8.2 16 12l-5.9 3.8z" fill="currentColor"/>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.6 9.4h11.2v5.2a4 4 0 0 1-4 4H8.6a4 4 0 0 1-4-4z"/>
+        <path d="M15.8 10.6h1.8a2.4 2.4 0 0 1 0 4.8h-1.8"/>
+        <path d="M8 3.6v2.4M12 3.6v2.4"/>
       </svg>
       <span>休憩開始</span>
     </button>
@@ -94,15 +90,15 @@
       <div class="hero-meta" id="liveMeta">出勤していません</div>
     </section>
 
-    <!-- ②今日 ③今月 -->
-    <section class="stats">
-      <div class="card stat">
+    <!-- ②今日 ③今月(設定でそれぞれ隠せる) -->
+    <section class="stats" id="statsSection">
+      <div class="card stat" id="todayCard">
         <div class="stat-label">今日</div>
         <div class="amount amount--sub" id="todayAmount">¥0</div>
         <div class="stat-sub" id="todaySub">0:00</div>
       </div>
 
-      <div class="card stat">
+      <div class="card stat" id="monthCard">
         <div class="stat-label">今月</div>
         <div class="amount amount--sub" id="monthAmount">¥0</div>
         <div class="stat-sub">
@@ -241,6 +237,13 @@
       <span class="field-label">賃金締め日</span>
       <select id="setClosingDay"></select>
     </label>
+
+    <div class="field">
+      <span class="field-label">メイン画面に表示するもの</span>
+      <label class="check"><input id="setShowToday" type="checkbox"> 今日</label>
+      <label class="check"><input id="setShowMonth" type="checkbox"> 今月</label>
+      <span class="hint">秒単位の金額と、今月の法定時間外は常に表示します。</span>
+    </div>
 
     <div class="field">
       <label class="check"><input id="setAutoMode" type="checkbox"> 自動モード(出勤/退勤ボタンを使わない)</label>
