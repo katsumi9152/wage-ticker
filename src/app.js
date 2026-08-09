@@ -244,17 +244,30 @@
     item.classList.toggle('is-over', remainMinutes <= 0);
   }
 
+  /** 状態バッジ。待機中/勤務中/休憩中/自動計測中を色でも見分けられるようにする。 */
   function renderStatus(live) {
     var badge = $('statusBadge');
     var working = !!ctx.active;
-    badge.classList.toggle('is-working', working);
-    var text;
-    if (!store.state.configured) text = '未設定';
-    else if (!working) text = '待機中';
-    else if (live && live.onBreak) text = '休憩中';
-    else if (ctx.active.manual) text = '勤務中'; // 手動の打刻が優先されている
-    else text = ctx.settings.autoMode ? '自動計測中' : '勤務中';
+    var text, state;
+
+    if (!store.state.configured) {
+      text = '未設定'; state = 'idle';
+    } else if (!working) {
+      text = '待機中'; state = 'idle';
+    } else if (live && live.onBreak) {
+      text = '休憩中'; state = 'break';
+    } else if (ctx.active.manual) {
+      text = '勤務中'; state = 'working'; // 手動の打刻が優先されている
+    } else if (ctx.settings.autoMode) {
+      text = '自動計測中'; state = 'auto';
+    } else {
+      text = '勤務中'; state = 'working';
+    }
+
     $('statusText').textContent = text;
+    badge.classList.toggle('is-working', state === 'working');
+    badge.classList.toggle('is-break', state === 'break');
+    badge.classList.toggle('is-auto', state === 'auto');
     $('detailsPanel').classList.toggle('is-working', working);
   }
 

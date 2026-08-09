@@ -120,6 +120,8 @@
     frame();
     ok(S.isOnManualBreak(), '休憩が始まっていない');
     eq(el('statusText').textContent, '休憩中');
+    ok(el('statusBadge').classList.contains('is-break'), '休憩中の色になっていない');
+    ok(!el('statusBadge').classList.contains('is-working'), '勤務中の色が残っている');
     eq(el('breakBtn').textContent, '休憩終了');
 
     var stopped = el('liveInt').textContent;
