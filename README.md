@@ -19,16 +19,16 @@ pwsh -File serve.ps1 -Any       # 表示された http://<PCのIP>:8765/ をス�
 Node もインストールも不要です。2 種類あります。
 
 ```powershell
-pwsh -File test\run.ps1     # 全部まとめて実行(100件)
+pwsh -File test\run.ps1     # 全部まとめて実行(101件)
 ```
 
 | スイート | 件数 | 内容 |
 |---|---|---|
 | `test/tests.js` | 50 | 給与計算の純粋関数(SPEC 3〜8章)。締め日、休憩控除、深夜、区分と割増、有給・半休・未入力日、前月比較、固定残業代、週集計、残業メーター、ロールオーバー |
 | `test/holidays.js` | 13 | `src/holidays.js` の国民の祝日計算。固定日・移動祝日・春分秋分・振替休日・国民の休日・過去の例外年 |
-| `test/smoke.js` | 37 | `src/app.js` を DOM の代役の上で起動し、出勤→描画→内訳→退勤、自動モード、カレンダーからの追記・休憩編集、テーマ切替、保存までを通しで確認 |
+| `test/smoke.js` | 38 | `src/app.js` を DOM の代役の上で起動し、出勤→描画→内訳→退勤、自動モード、カレンダーからの追記・休憩編集、テーマ切替、保存までを通しで確認 |
 
-`test/index.html` をブラウザで開くと、`test/tests.js` と `test/holidays.js`(あわせて58件)がその場で走ります。
+`test/index.html` をブラウザで開くと、`test/tests.js` と `test/holidays.js`(あわせて63件)がその場で走ります。
 
 `test/run.ps1` は Windows 同梱の Windows Script Host(cscript)で JavaScript を実行しています。そのエンジンは ES3 相当なので、`test/es3-shim.js` で不足分を補い、`test/dom-stub.js` で最小限の DOM を用意しています。いずれもテスト専用で、アプリ本体には含まれません。
 
