@@ -149,8 +149,18 @@
       store.saveState();
     }
 
+    var prevLastClockOutAt = store.state.lastClockOutAt;
     var autoInfo = WT.storage.resolveAutoMode(store, now.getTime());
     var active = activeSessionOf(settings, autoInfo);
+
+    // 自動モードが「いままさに」自動確定した瞬間だけを検出して、法定休憩の
+    // 自動追加控除があればお知らせする(resolveAutoMode は既に確定済みの日にも
+    // 毎回 finalized:true を返すが、その場合は lastClockOutAt を書き換えないので
+    // 区別できる)
+    if (settings.autoMode && autoInfo.finalized && store.state.lastClockOutAt !== prevLastClockOutAt) {
+      notifyIfLegalBreakToppedUp(T.dateKey(new Date(store.state.lastClockOutAt)));
+    }
+
     var agg = A.aggregatePeriod({
       period: period,
       settings: settings,
@@ -189,13 +199,10 @@
     var live = currentLive(Date.now());
 
     var monthTotal = W.cloneBreakdown(ctx.agg.totals);
-    // 「気づき」(本日休憩なしで長時間、等)は日単位のままなので別に持っておく
-    var todayTotal = W.cloneBreakdown(ctx.agg.todayFinalized);
     var weekSummary = A.weekSummary(ctx.agg.days, ctx.now, ctx.settings, store.calendar);
     var weekTotal = W.cloneBreakdown(weekSummary.totals);
     if (live) {
       W.addBreakdown(monthTotal, live.breakdown);
-      W.addBreakdown(todayTotal, live.breakdown);
       W.addBreakdown(weekTotal, live.breakdown); // 今日は必ず今週に含まれる
     }
 
@@ -226,7 +233,7 @@
       : null);
     renderStatus(live);
     renderActions();
-    if ($('detailsPanel').open) renderDetails(monthTotal, todayTotal, live, cmp);
+    if ($('detailsPanel').open) renderDetails(monthTotal, live, cmp);
   }
 
   /** 「今週」「今月」は設定で隠せる。片方だけなら横幅いっぱいに広げる。 */
@@ -481,7 +488,7 @@
       '</span><span class="v' + (o.money ? ' money' : '') + '">' + v + '</span></div>';
   }
 
-  function renderDetails(monthTotal, todayTotal, live, cmp) {
+  function renderDetails(monthTotal, live, cmp) {
     var s = ctx.settings;
     var agg = ctx.agg;
     var html = '';
@@ -562,12 +569,6 @@
 
     // --- 気づき(SPEC 8.2)
     var notices = [];
-    var todayMinutes = todayTotal.workedMinutes;
-    var todayDeducted = (live ? live.deductedMinutes : 0) + todayFinalizedDeduction();
-    var bn = A.breakNotice(todayMinutes, todayDeducted);
-    if (bn) {
-      notices.push('本日は休憩の控除なしで' + bn.threshold + '時間を超えています(法定は' + bn.requiredMinutes + '分以上)。');
-    }
     // 徹夜勤務は始業日の労働として通算する。丸1日を超えたら押し忘れの可能性が高い。
     if (live && live.rawMinutes > 24 * 60) {
       notices.push('出勤から ' + T.formatMinutesJa(live.rawMinutes) +
@@ -602,16 +603,6 @@
     $('detailsBody').innerHTML = html;
   }
 
-  function todayFinalizedDeduction() {
-    var todayKey = T.dateKey(ctx.now);
-    var sum = 0;
-    for (var i = 0; i < ctx.agg.days.length; i++) {
-      var d = ctx.agg.days[i];
-      if (d.date === todayKey && d.kind === 'work') sum += d.deductedMinutes || 0;
-    }
-    return sum;
-  }
-
   // ------------------------------------------------------------ 打刻操作
 
   /** 打刻の前にひとこと確認する(押し間違いを防ぐ) */
@@ -637,6 +628,33 @@
     });
   }
 
+  /** 打刻の確認とは別の、OKボタンのみの通知ダイアログ */
+  function showInfo(message) {
+    $('infoText').textContent = message;
+    var dlg = $('infoDialog');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function initInfo() {
+    $('infoOk').addEventListener('click', function () {
+      $('infoDialog').close();
+    });
+  }
+
+  /**
+   * dateKey の日の確定済み打刻を読み直し、法定休憩の自動追加控除
+   * (wage.sessionWork の legalBreakToppedUpMinutes)が発生していれば知らせる。
+   */
+  function notifyIfLegalBreakToppedUp(dateKey) {
+    var entry = store.calendar[dateKey];
+    if (!entry || !entry.clockIn || !entry.clockOut) return;
+    var work = W.sessionWork(entry.clockIn, entry.clockOut, store.settings.breakWindow, entry.breaks);
+    if (work.legalBreakToppedUpMinutes > 0) {
+      showInfo('本日は休憩の控除が法定基準(実働6時間超で45分・8時間超で60分)に届いていなかったため、' +
+        T.formatMinutesJa(work.legalBreakToppedUpMinutes) + '分を自動で追加控除しました(退勤時刻の直前から差し引いています)。');
+    }
+  }
+
   function afterPunch() {
     lastLogSavedAt = 0;
     heavy();
@@ -653,10 +671,6 @@
       if (ctx.settings.autoMode) {
         msg += '(以後は手動扱いになり、退勤予定時刻でも自動的には終わりません。退勤は自分で押してください)';
       }
-      // 昼休憩の時間帯の途中での出勤は、半休登録のほうが正しい場合があるので注意しておく
-      if (isLunchNow()) {
-        msg += '(いまは昼休憩の時間帯です。半日だけ働く日はカレンダーから半休登録すると、昼休憩を控除せず計算できます)';
-      }
       askConfirm(msg, function () {
         store.clockIn(Date.now());
         afterPunch();
@@ -667,12 +681,17 @@
       // すでに確定済みの日なら、退勤時刻を「いま」に更新する
       var updating = store.state.status !== 'working' && store.isFinishedToday(Date.now());
       var msg = updating ? '退勤時刻を、いまの時刻に更新しますか?' : '退勤しますか?';
-      if (isLunchNow()) {
-        msg += '(いまは昼休憩の時間帯です。半日だけ働く日はカレンダーから半休登録すると、昼休憩を控除せず計算できます)';
-      }
       askConfirm(msg, function () {
-        store.clockOut(Date.now());
+        // clockOut() で state.clockInAt が null にリセットされる前に、対象日を確定しておく
+        var wasWorkingStartMs = store.state.status === 'working' ? store.state.clockInAt : null;
+        var nowMs = Date.now();
+        store.clockOut(nowMs);
         afterPunch();
+
+        var entryKey = wasWorkingStartMs
+          ? T.dateKey(new Date(wasWorkingStartMs))
+          : T.dateKey(new Date(nowMs)); // storage.js の「確定済み当日の更新」分岐と同じ規則
+        notifyIfLegalBreakToppedUp(entryKey);
       });
     });
 
@@ -789,7 +808,6 @@
     fillSelect('setBreakEnd', timeOptions());
     fillSelect('setScheduleStart', timeOptions());
     fillSelect('setScheduleEnd', timeOptions());
-    fillSelect('setHalfDayBoundary', timeOptions());
 
     var closing = $('setClosingDay');
     var opts = '<option value="last">末日</option>';
@@ -886,7 +904,6 @@
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
     setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
-    setSelectValue('setHalfDayBoundary', s.halfDayBoundary || WT.DEFAULT_SETTINGS.halfDayBoundary);
 
     refreshDailyHours();
     dlg.showModal();
@@ -922,7 +939,6 @@
     s.showMonth = $('setShowMonth').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
-    s.halfDayBoundary = $('setHalfDayBoundary').value || WT.DEFAULT_SETTINGS.halfDayBoundary;
 
     store.saveSettings();
     store.state.configured = true;
@@ -1022,7 +1038,6 @@
       var mark = '';
       if (entry && (entry.clockIn || entry.coveredBy)) mark = 'work';
       else if (entry && entry.type === 'paid_leave') mark = 'leave';
-      else if (entry && entry.type === 'half_day') mark = 'half';
       else if (entry && entry.type === 'company_holiday') mark = entry.holidayKind === 'legal' ? 'legal' : 'scheduled';
       else if (key < todayKey && A.isScheduledWorkDay(date, store.settings, store.calendar)) mark = 'auto';
       else if (!A.isScheduledWorkDay(date, store.settings, store.calendar)) {
@@ -1095,11 +1110,6 @@
       if (!btn) return;
       selectSeg($('dayHolidayKind'), btn);
     });
-    $('dayHalfKind').addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-half]');
-      if (!btn) return;
-      selectSeg($('dayHalfKind'), btn);
-    });
     $('dayCancel').addEventListener('click', function () { $('dayDialog').close(); });
     $('daySave').addEventListener('click', saveDayDialog);
     /*
@@ -1135,7 +1145,6 @@
     var kind = 'none';
     if (entry && entry.clockIn) kind = 'work';
     else if (entry && entry.type === 'paid_leave') kind = 'paid_leave';
-    else if (entry && entry.type === 'half_day') kind = 'half_day';
     else if (entry && entry.type === 'company_holiday') kind = 'company_holiday';
 
     var kindBtns = $('dayKind').querySelectorAll('button[data-kind]');
@@ -1148,12 +1157,6 @@
     var hkBtns = $('dayHolidayKind').querySelectorAll('button[data-holiday]');
     for (var j = 0; j < hkBtns.length; j++) {
       hkBtns[j].classList.toggle('is-on', hkBtns[j].getAttribute('data-holiday') === hk);
-    }
-
-    var halfKind = (entry && entry.halfKind) || 'pm';
-    var halfBtns = $('dayHalfKind').querySelectorAll('button[data-half]');
-    for (var k = 0; k < halfBtns.length; k++) {
-      halfBtns[k].classList.toggle('is-on', halfBtns[k].getAttribute('data-half') === halfKind);
     }
 
     if (entry && entry.clockIn) {
@@ -1190,7 +1193,6 @@
   function syncDayRows() {
     var kind = segValue($('dayKind'), 'data-kind');
     $('dayWorkRow').hidden = kind !== 'work';
-    $('dayHalfRow').hidden = kind !== 'half_day';
     $('dayHolidayRow').hidden = kind !== 'company_holiday';
   }
 
@@ -1203,8 +1205,6 @@
       store.setDay(key, null);
     } else if (kind === 'paid_leave') {
       store.setDay(key, { type: 'paid_leave' });
-    } else if (kind === 'half_day') {
-      store.setDay(key, { type: 'half_day', halfKind: segValue($('dayHalfKind'), 'data-half') || 'pm' });
     } else if (kind === 'company_holiday') {
       store.setDay(key, { type: 'company_holiday', holidayKind: segValue($('dayHolidayKind'), 'data-holiday') || 'scheduled' });
     } else {
@@ -1231,6 +1231,7 @@
     store.load();
     initTheme();
     initConfirm();
+    initInfo();
     initActions();
     initSettings();
     initCalendar();

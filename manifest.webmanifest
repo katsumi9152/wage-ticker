@@ -1,7 +1,7 @@
 {
   "name": "WageTicker",
   "short_name": "WageTicker",
-  "description": "出勤するだけで、金額と労働時間が秒単位で積み上がる給料メーター",
+  "description": "出退勤の時刻から、残業・深夜・休日の割増や休憩控除まで反映してリアルタイムに賃金額を算出する個人用の給料メーター",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

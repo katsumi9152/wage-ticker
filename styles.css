@@ -921,7 +921,6 @@ dialog.confirm[open] { animation: confirm-in 0.18s ease-out; }
 .cal-cell .mk { width: 7px; height: 7px; border-radius: 50%; background: transparent; }
 .cal-cell .mk.work { background: var(--cyan); }
 .cal-cell .mk.leave { background: var(--green); }
-.cal-cell .mk.half { background: var(--blue); }
 .cal-cell .mk.legal { background: var(--pink); }
 .cal-cell .mk.holiday { background: var(--violet); }
 .cal-cell .mk.scheduled { background: var(--faint); }
@@ -939,7 +938,6 @@ dialog.confirm[open] { animation: confirm-in 0.18s ease-out; }
 .sw { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .sw--work { background: var(--cyan); }
 .sw--leave { background: var(--green); }
-.sw--half { background: var(--blue); }
 .sw--legal { background: var(--pink); }
 .sw--holiday { background: var(--violet); }
 .sw--scheduled { background: var(--faint); }

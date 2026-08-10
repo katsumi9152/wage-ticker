@@ -190,6 +190,9 @@
   test('休憩: 昼休憩の時間帯に入ると「昼休憩中」の表示になる', function () {
     var now = Date.now();
     var hh = pad2(new Date(now).getHours());
+    // 出社時刻が休憩帯の中にあると、その日は休憩扱いにしない(5.2)ので、
+    // 出社は休憩帯よりはっきり前にずらしておく(実際に出社してから昼休憩に入るケース)
+    S.state.clockInAt = now - 3 * 60 * 60 * 1000;
     S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' }; // 今の時刻を含む1時間
     refresh();
     ok(!S.isOnManualBreak(), '前提が崩れている(手動休憩が続いたまま)');
@@ -369,26 +372,6 @@
     ok(el('calTitle').textContent.indexOf('年') > 0, '年月の見出しが出ていない');
   });
 
-  test('カレンダー: 半休の日は専用の印になり、今月の集計にも反映される', function () {
-    S.calendar = {};
-    var now = new Date();
-    var key = WT.time.dateKey(new Date(now.getFullYear(), now.getMonth(), 1));
-    S.setDay(key, { type: 'half_day', halfKind: 'pm' });
-    refresh();
-
-    el('openCalendar').fire('click'); // 毎回「今月」に戻るので、月初(1日)は必ず表示範囲内
-    var cellHtml = el('calGrid').innerHTML;
-    var start = cellHtml.indexOf('data-date="' + key + '"');
-    ok(start >= 0, '対象の日のセルが描画されていない');
-    var end = cellHtml.indexOf('</button>', start);
-    var thisCell = cellHtml.slice(start, end >= 0 ? end : undefined);
-    ok(thisCell.indexOf('mk half') >= 0, '半休の印(half)が付いていない: ' + thisCell);
-
-    var yen = Number(el('monthAmount').textContent.replace(/[^\d]/g, ''));
-    ok(yen > 0, '半休の日が今月の金額に反映されていない');
-    S.calendar = {};
-  });
-
   test('カレンダー: 祝日は専用の印になり、タップすると名前が出る', function () {
     S.calendar = {};
     S.settings.observeNationalHolidays = true;
@@ -535,28 +518,69 @@
     S.state.overtimeFlag = false;
     refresh();
 
-    // 昼休憩の時間帯の途中に押した場合の注意書きだけを先に確認し、他のアサーションに
-    // 影響しないよう、確認後すぐに既定の時間帯へ戻す。
-    var hh = pad2(new Date().getHours());
-    S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' }; // 今の時刻を含む1時間
     el('clockInBtn').fire('click');
-    ok(el('confirmText').textContent.indexOf('半休登録') >= 0,
-      '昼休憩の時間帯中の出勤で、半休登録を促す注意書きが出ていない');
-    S.settings.breakWindow = { start: '12:00', end: '13:00' };
     confirmYes();
     frame();
     eq(S.state.status, 'working', '自動モードでも出勤できる');
     eq(el('statusText').textContent, '勤務中', '自動計測ではなく手動の勤務として扱う');
     ok(el('overtimeBtn').hidden === true, '手動で出勤したら残業ボタンは出さない');
 
-    S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' };
     el('clockOutBtn').fire('click');
-    ok(el('confirmText').textContent.indexOf('半休登録') >= 0,
-      '昼休憩の時間帯中の退勤で、半休登録を促す注意書きが出ていない');
-    S.settings.breakWindow = { start: '12:00', end: '13:00' };
     confirmYes();
     frame();
     eq(S.state.status, 'off');
+    S.calendar = {};
+    S.state.autoDayKey = null;
+    refresh();
+  });
+
+  test('退勤: 法定休憩に届かなければ自動追加控除のお知らせが出る', function () {
+    S.calendar = {};
+    S.settings.autoMode = false;
+    var now = Date.now();
+    var brkDate = new Date(now - 3 * 60 * 60 * 1000); // セッションの真ん中あたりに置く
+    var hh = pad2(brkDate.getHours());
+    S.settings.breakWindow = { start: hh + ':00', end: hh + ':20' }; // 20分だけ(45分未満)
+    S.state.status = 'working';
+    S.state.clockInAt = now - 7 * 60 * 60 * 1000; // 7時間前に出勤(6時間超)
+    S.state.isLegalHoliday = false;
+    S.state.breaks = [];
+    refresh();
+
+    el('clockOutBtn').fire('click');
+    confirmYes();
+    frame();
+    ok(el('infoText').textContent.indexOf('自動で追加控除') >= 0,
+      '法定休憩に届かない退勤で、お知らせダイアログが出ていない');
+
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
+    S.calendar = {};
+    S.state.autoDayKey = null;
+    refresh();
+  });
+
+  test('自動モード: 自動確定でも法定休憩に届かなければお知らせが出る', function () {
+    var now = new Date();
+    S.calendar = {};
+    S.settings.autoMode = true;
+    S.settings.workdays = [0, 1, 2, 3, 4, 5, 6];
+    S.state.overtimeFlag = false;
+    S.state.autoDayKey = null;
+    S.state.breaks = [];
+    var startD = new Date(now.getTime() - 7 * 60 * 60 * 1000);
+    S.settings.schedule = {
+      start: pad2(startD.getHours()) + ':' + pad2(startD.getMinutes()),
+      end: pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
+    };
+    var brkD = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    S.settings.breakWindow = { start: pad2(brkD.getHours()) + ':00', end: pad2(brkD.getHours()) + ':20' };
+    refresh();
+    eq(punchCount(), 1, '自動確定されていない');
+    ok(el('infoText').textContent.indexOf('自動で追加控除') >= 0,
+      '自動確定時のお知らせが出ていない');
+
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
+    S.settings.workdays = [1, 2, 3, 4, 5];
     S.calendar = {};
     S.state.autoDayKey = null;
     refresh();

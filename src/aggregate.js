@@ -171,19 +171,6 @@
           workedMinutes: bdLeave.workedMinutes,
           breakdown: bdLeave,
         };
-      } else if (entry && entry.type === 'half_day') {
-        // 半休(半日有給): 区切り時刻を境に、半分は有給扱い・半分は実勤務として計算する
-        var boundaryMinutes = T.parseTimeToMinutes(settings.halfDayBoundary) ||
-          T.parseTimeToMinutes(WT.DEFAULT_SETTINGS.halfDayBoundary);
-        var bdHalf = W.allocateHalfDay(cursor, d, entry.halfKind || 'pm', boundaryMinutes, settings, rates);
-        record = {
-          date: key,
-          kind: 'half_day',
-          halfKind: entry.halfKind || 'pm',
-          isLegalHoliday: false,
-          workedMinutes: bdHalf.workedMinutes,
-          breakdown: bdHalf,
-        };
       } else if (entry && entry.type === 'company_holiday') {
         // 打刻のない会社休日: 所定労働日から除外。未入力日にもしない。
         continue;
@@ -337,23 +324,6 @@
     };
   }
 
-  // ---------------------------------------------------- 休憩・インターバル
-
-  /**
-   * 休憩未取得の目安(SPEC 8.2 ①)。
-   * その日の実働が6時間/8時間を超えているのに休憩控除が発生していない場合に返す。
-   */
-  function breakNotice(dayWorkedMinutes, dayDeductedMinutes) {
-    if (dayDeductedMinutes > 0) return null;
-    if (dayWorkedMinutes > WT.BREAK_LAW.OVER_8H_MINUTES) {
-      return { threshold: 8, requiredMinutes: 60 };
-    }
-    if (dayWorkedMinutes > WT.BREAK_LAW.OVER_6H_MINUTES) {
-      return { threshold: 6, requiredMinutes: 45 };
-    }
-    return null;
-  }
-
   WT.aggregate = {
     getEntry: getEntry,
     isScheduledWorkDay: isScheduledWorkDay,
@@ -368,6 +338,5 @@
     comparePrevious: comparePrevious,
     toHistoryRecord: toHistoryRecord,
     overtimeMeter: overtimeMeter,
-    breakNotice: breakNotice,
   };
 })((globalThis.WT = globalThis.WT || {}));

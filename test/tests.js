@@ -131,18 +131,30 @@
     near(r.workedMinutes, 480);
   });
 
-  test('5.2 休憩時間帯と重ならなければ控除されない(午後だけの半休出勤)', function () {
-    var r = W.sessionWork(at(2026, 9, 10, 13, 0), at(2026, 9, 10, 20, 0), { start: '12:00', end: '13:00' });
+  test('5.2 休憩時間帯と重ならなければ控除されない(午後出勤)', function () {
+    // 実働5時間(法定休憩の追加控除ラインの6時間以下)に収め、①の判定だけを見る
+    var r = W.sessionWork(at(2026, 9, 10, 13, 0), at(2026, 9, 10, 18, 0), { start: '12:00', end: '13:00' });
     near(r.deductedMinutes, 0);
-    near(r.workedMinutes, 420);
+    near(r.workedMinutes, 300);
   });
 
-  test('5.2 休憩の途中は控除が部分的に進む(カウンターが止まる)', function () {
+  test('5.2 退勤時刻が休憩帯の中なら、その日は控除しない', function () {
     var r = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 12, 30), { start: '12:00', end: '13:00' });
-    near(r.deductedMinutes, 30);
-    near(r.workedMinutes, 180, 1e-9, '12:00以降は実働が増えない');
-    ok(W.isOnBreakAt(at(2026, 9, 10, 12, 30), at(2026, 9, 10, 9, 0), { start: '12:00', end: '13:00' }), '休憩中判定');
+    near(r.deductedMinutes, 0, 1e-9, '退勤12:30は休憩帯12:00-13:00の中なので控除しない');
+    near(r.workedMinutes, 210, 1e-9, '控除なしなのでそのまま9:00〜12:30の3.5時間');
+    ok(W.isOnBreakAt(at(2026, 9, 10, 12, 30), at(2026, 9, 10, 9, 0), { start: '12:00', end: '13:00' }), '休憩中判定(UIバッジ用、控除とは別)');
     ok(!W.isOnBreakAt(at(2026, 9, 10, 13, 30), at(2026, 9, 10, 9, 0), { start: '12:00', end: '13:00' }));
+  });
+
+  test('5.2 出社時刻が休憩帯の中なら、その日は控除しない', function () {
+    var r = W.sessionWork(at(2026, 9, 10, 12, 30), at(2026, 9, 10, 18, 0), { start: '12:00', end: '13:00' });
+    near(r.deductedMinutes, 0);
+    near(r.workedMinutes, 330, 1e-9, '12:30〜18:00 = 5.5時間、控除なし');
+  });
+
+  test('5.2 出社時刻が休憩帯の中なら、その休憩帯では休憩中扱いにしない(カウンター表示との整合)', function () {
+    ok(!W.isOnBreakAt(at(2026, 9, 10, 12, 45), at(2026, 9, 10, 12, 30), { start: '12:00', end: '13:00' }),
+      '控除されない休憩帯なのに「休憩中」表示になっている');
   });
 
   test('5.2 休憩時間帯が未登録なら一律60分を控除する(8時間で引き切る)', function () {
@@ -156,6 +168,37 @@
 
     var justStarted = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 9, 10), null);
     ok(justStarted.workedMinutes > 0, '出勤10分後でも金額は増え始めている');
+  });
+
+  // ---------------------- 5.2 法定休憩に届かない場合の自動追加控除(労基法34条)
+
+  test('5.2 6時間超・控除45分未満なら不足分を自動で追加控除する', function () {
+    // 9:00-16:00(7h=420分)、休憩帯12:15-12:35(20分)は始業・終業に掛からない
+    var r = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 16, 0), { start: '12:15', end: '12:35' });
+    near(r.deductedMinutes, 45, 1e-9, '20分では法定45分に届かないので25分追加控除される');
+    near(r.legalBreakToppedUpMinutes, 25);
+    near(r.workedMinutes, 375); // 420 - 45
+  });
+
+  test('5.2 8時間超・控除60分未満なら不足分を自動で追加控除する', function () {
+    // 9:00-18:30(9.5h=570分)、休憩帯12:00-12:40(40分)
+    var r = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 18, 30), { start: '12:00', end: '12:40' });
+    near(r.deductedMinutes, 60);
+    near(r.legalBreakToppedUpMinutes, 20);
+    near(r.workedMinutes, 510); // 570 - 60
+  });
+
+  test('5.2 すでに法定基準を満たしていれば追加控除しない', function () {
+    // 9:00-19:00(10h=600分)、休憩帯12:00-13:00(60分、始業終業には掛からない)
+    var r = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 19, 0), { start: '12:00', end: '13:00' });
+    near(r.deductedMinutes, 60);
+    eq(r.legalBreakToppedUpMinutes, 0);
+    near(r.workedMinutes, 540);
+  });
+
+  test('5.2 実働6時間以下なら追加控除しない', function () {
+    var r = W.sessionWork(at(2026, 9, 10, 9, 0), at(2026, 9, 10, 14, 30), null);
+    eq(r.legalBreakToppedUpMinutes, 0);
   });
 
   // --------------------------------------------------------- 5.5 深夜帯
@@ -429,27 +472,6 @@
     near(agg.totals.night.minutes, 0);
   });
 
-  test('半休: 昼休憩を控除せず、半分は有給・半分は実勤務として計上する', function () {
-    var settings = baseSettings(); // schedule 09:00〜17:30、区切りは既定の13:00
-    var calendar = { '2026-09-03': { type: 'half_day', halfKind: 'pm' } };
-    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
-    var agg = A.aggregatePeriod({ period: period, settings: settings, calendar: calendar, activeSession: null, now: day(2026, 9, 10) });
-    eq(agg.autoFilledDays, 6, '半休の日は未入力に数えない');
-    // 09:00〜17:30(510分)を、昼休憩の控除なしで丸ごと計上する(通常の1日分450分より多い)
-    near(agg.totals.workedMinutes, 6 * 450 + 510);
-  });
-
-  test('半休: 午前休・午後休のどちらでも合計時間は変わらない', function () {
-    var s = baseSettings();
-    var period = P.resolvePeriod(day(2026, 9, 10), 'last');
-    var frames = A.computeFrames(period, s, {});
-    var rates = W.deriveRates(s);
-    var bdAm = W.allocateHalfDay(W.createCursor(frames), day(2026, 9, 3), 'am', 13 * 60, s, rates);
-    var bdPm = W.allocateHalfDay(W.createCursor(frames), day(2026, 9, 3), 'pm', 13 * 60, s, rates);
-    near(bdAm.workedMinutes, 510, 1e-9, '午前休(09:00〜17:30をまるごと計上)');
-    eq(bdAm.workedMinutes, bdPm.workedMinutes, '午前休・午後休で合計は変わらない');
-  });
-
   test('6.1 会社休日は所定労働日から外れ、未入力にもならない', function () {
     var settings = baseSettings();
     var calendar = { '2026-09-04': { type: 'company_holiday', holidayKind: 'scheduled' } };
@@ -492,8 +514,11 @@
       if (agg.days[i].date === '2026-09-03') overnight = agg.days[i];
     }
     ok(!!overnight, '出勤した日の記録になっていない');
-    near(overnight.workedMinutes, 540, 1e-9, '21:00〜6:00 の9時間');
-    near(overnight.breakdown.night.minutes, 420, 1e-9, '22:00〜5:00 の7時間が深夜割増');
+    // 21:00〜6:00の9時間は昼休憩(12:00-13:00)と重ならず休憩控除が無いので、
+    // 法定休憩(8時間超60分)が退勤直前(5:00〜6:00)から自動で追加控除される
+    near(overnight.deductedMinutes, 60, 1e-9, '法定休憩の自動追加控除');
+    near(overnight.workedMinutes, 480, 1e-9, '9時間 − 自動追加控除60分');
+    near(overnight.breakdown.night.minutes, 420, 1e-9, '22:00〜5:00 の7時間が深夜割増(追加控除は5:00以降なので影響しない)');
     eq(agg.unfilledDates.indexOf('2026-09-04'), -1, '翌日を未入力として二重に数えてはいけない');
   });
 
@@ -624,15 +649,6 @@
     var m = A.overtimeMeter(0, 0);
     near(m.mark45Percent, 75, 1e-9, '45時間は60時間目盛りの75%の位置');
     eq(m.mark60Percent, 100);
-  });
-
-  // ------------------------------------------------------ 8.2 気づき
-
-  test('8.2 休憩未取得の目安', function () {
-    eq(A.breakNotice(300, 0), null, '5時間なら表示しない');
-    eq(A.breakNotice(400, 0).threshold, 6);
-    eq(A.breakNotice(500, 0).threshold, 8);
-    eq(A.breakNotice(500, 60), null, '控除があれば表示しない');
   });
 
   // -------------------------------------------- 7.3/12 ロールオーバー

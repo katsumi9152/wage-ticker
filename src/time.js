@@ -184,6 +184,25 @@
     return out;
   }
 
+  /** 末尾から minutes 分だけ削り取る(法定休憩に届かない日の自動追加控除に使う) */
+  function trimFromEnd(segments, minutes) {
+    var remain = minutes;
+    var out = [];
+    for (var i = segments.length - 1; i >= 0; i--) {
+      var s = segments[i];
+      var len = (s.endMs - s.startMs) / MS_PER_MINUTE;
+      if (remain <= 0) {
+        out.unshift(s);
+      } else if (remain >= len) {
+        remain -= len;
+      } else {
+        out.unshift({ startMs: s.startMs, endMs: s.endMs - remain * MS_PER_MINUTE, isNight: s.isNight });
+        remain = 0;
+      }
+    }
+    return out;
+  }
+
   WT.time = {
     MS_PER_MINUTE: MS_PER_MINUTE,
     MS_PER_DAY: MS_PER_DAY,
@@ -205,5 +224,6 @@
     breakWindowsIn: breakWindowsIn,
     totalMinutes: totalMinutes,
     trimFromStart: trimFromStart,
+    trimFromEnd: trimFromEnd,
   };
 })((globalThis.WT = globalThis.WT || {}));

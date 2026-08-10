@@ -91,9 +91,15 @@
   /**
    * 1回の打刻区間から、休憩控除後の実働セグメント(深夜/非深夜に分割済み)を作る。
    *
-   * 控除は2種類あり、どちらも打刻区間から差し引く。重なっていても二重には引かれない。
-   *   ① 昼休憩(設定した時間帯)  — 自動で差し引く
+   * 控除は3種類あり、いずれも打刻区間から差し引く。重なっていても二重には引かれない。
+   *   ① 昼休憩(設定した時間帯) — 出退勤どちらもその時間帯の外にある(=完全に
+   *      またいでいる)日だけ丸ごと差し引く。出勤・退勤のどちらかがその時間帯の
+   *      途中にある日(半日だけ働く日など)は、そもそも昼休憩を取れていないので
+   *      控除しない
    *   ② 手動の休憩(休憩開始/終了) — 押した区間を差し引く。終了前なら現在時刻まで
+   *   ③ 法定休憩の自動追加控除(労基法34条) — ①②を終えてなお、実働が6時間超
+   *      なのに控除計45分未満、または8時間超なのに60分未満なら、不足分を
+   *      退勤直前から自動で追加控除する
    *
    * @param {number} startMs 出勤時刻
    * @param {number} endMs   退勤時刻(リアルタイム表示中は現在時刻)
@@ -106,8 +112,14 @@
     var deductedMinutes = 0;
 
     if (breakWindow && T.parseTimeToMinutes(breakWindow.start) !== null && T.parseTimeToMinutes(breakWindow.end) !== null) {
+      var windows = T.breakWindowsIn(startMs, endMs, breakWindow);
+      var fullWindows = windows.filter(function (w) {
+        var startsInside = startMs > w.startMs && startMs < w.endMs;
+        var endsInside = endMs > w.startMs && endMs < w.endMs;
+        return !startsInside && !endsInside;
+      });
       var before = T.totalMinutes(segments);
-      segments = T.subtractWindows(segments, T.breakWindowsIn(startMs, endMs, breakWindow));
+      segments = T.subtractWindows(segments, fullWindows);
       deductedMinutes = before - T.totalMinutes(segments);
     } else {
       deductedMinutes = Math.min(rawMinutes, flatBreakDeduction(rawMinutes));
@@ -115,22 +127,35 @@
     }
 
     if (manualBreaks && manualBreaks.length) {
-      var windows = [];
+      var manualWindows = [];
       for (var i = 0; i < manualBreaks.length; i++) {
         var b = manualBreaks[i];
         if (!b || !b.start) continue;
         var bEnd = b.end || endMs; // 終了前の休憩は「いまも休憩中」として現在まで引く
-        if (bEnd > b.start) windows.push({ startMs: b.start, endMs: bEnd });
+        if (bEnd > b.start) manualWindows.push({ startMs: b.start, endMs: bEnd });
       }
       var beforeManual = T.totalMinutes(segments);
-      segments = T.subtractWindows(segments, windows);
+      segments = T.subtractWindows(segments, manualWindows);
       deductedMinutes += beforeManual - T.totalMinutes(segments);
+    }
+
+    var legalBreakToppedUpMinutes = 0;
+    var workedMinutesSoFar = T.totalMinutes(segments);
+    var requiredMinutes = 0;
+    if (workedMinutesSoFar > WT.BREAK_LAW.OVER_8H_MINUTES) requiredMinutes = 60;
+    else if (workedMinutesSoFar > WT.BREAK_LAW.OVER_6H_MINUTES) requiredMinutes = 45;
+    if (requiredMinutes > 0 && deductedMinutes < requiredMinutes) {
+      var topUp = Math.min(requiredMinutes - deductedMinutes, workedMinutesSoFar);
+      segments = T.trimFromEnd(segments, topUp);
+      deductedMinutes += topUp;
+      legalBreakToppedUpMinutes = topUp;
     }
 
     return {
       rawMinutes: rawMinutes,
       deductedMinutes: deductedMinutes,
       workedMinutes: T.totalMinutes(segments),
+      legalBreakToppedUpMinutes: legalBreakToppedUpMinutes,
       segments: segments.map(function (s) {
         return { minutes: (s.endMs - s.startMs) / T.MS_PER_MINUTE, isNight: s.isNight, startMs: s.startMs, endMs: s.endMs };
       }),
@@ -360,6 +385,7 @@
       rawMinutes: work.rawMinutes,
       deductedMinutes: work.deductedMinutes,
       workedMinutes: work.workedMinutes,
+      legalBreakToppedUpMinutes: work.legalBreakToppedUpMinutes,
       onBreak: isOnBreakAt(endMs, startMs, settings.breakWindow) || hasOpenBreak(o.breaks),
       breakdown: breakdown,
     };
@@ -374,12 +400,20 @@
     return false;
   }
 
-  /** いま休憩時間帯の中か(カウンターを止める判定・SPEC 5.3) */
+  /**
+   * いま休憩時間帯の中か(カウンターを止める判定・SPEC 5.3)。
+   * 出社時刻がその休憩帯の中にある(sessionWork では控除しない)場合は、
+   * その休憩帯では止めない(金額は増え続けているのに「休憩中」と表示される
+   * 矛盾を避けるため)。
+   */
   function isOnBreakAt(ms, sessionStartMs, breakWindow) {
     if (!breakWindow) return false;
     var windows = T.breakWindowsIn(Math.min(sessionStartMs, ms), ms + 1, breakWindow);
     for (var i = 0; i < windows.length; i++) {
-      if (ms >= windows[i].startMs && ms < windows[i].endMs) return true;
+      var w = windows[i];
+      if (ms < w.startMs || ms >= w.endMs) continue;
+      var startsInside = sessionStartMs > w.startMs && sessionStartMs < w.endMs;
+      if (!startsInside) return true;
     }
     return false;
   }
@@ -395,55 +429,6 @@
       baseHourlyRate: rates.baseHourlyRate,
       autoFilled: !!(opts && opts.autoFilled),
     });
-  }
-
-  /**
-   * 半休(半日有給)の1日ぶんを計算する。区切り時刻を境に、片方は有給扱い
-   * (所定内として積み上げ)、もう片方は標準勤務スケジュールどおりに実際に
-   * 勤務したものとして計算する。半日ぶんの勤務なので、昼休憩の自動控除
-   * (sessionWork)は行わない。
-   *
-   * @param {'am'|'pm'} halfKind 'am' なら午前が有給・午後が勤務。'pm' はその逆
-   * @param {number} boundaryMinutes 区切り時刻(0:00からの分)
-   */
-  function allocateHalfDay(cursor, date, halfKind, boundaryMinutes, settings, rates) {
-    var scheduleStartMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.start);
-    var scheduleEndMin = T.parseTimeToMinutes(settings.schedule && settings.schedule.end);
-    var leaveRange, workRange;
-    if (halfKind === 'am') {
-      leaveRange = { start: scheduleStartMin, end: boundaryMinutes };
-      workRange = { start: boundaryMinutes, end: scheduleEndMin };
-    } else {
-      workRange = { start: scheduleStartMin, end: boundaryMinutes };
-      leaveRange = { start: boundaryMinutes, end: scheduleEndMin };
-    }
-
-    var breakdown = emptyBreakdown();
-    var leaveMinutes = Math.max(0, leaveRange.end - leaveRange.start);
-    if (leaveMinutes > 0) {
-      addBreakdown(breakdown, allocateSegments(cursor, [{ minutes: leaveMinutes, isNight: false }], {
-        isLegalHoliday: false,
-        baseHourlyRate: rates.baseHourlyRate,
-        autoFilled: false,
-      }));
-    }
-
-    if (workRange.end > workRange.start) {
-      var startMs = T.timeOnDate(date, workRange.start);
-      var endMs = T.timeOnDate(date, workRange.end);
-      // 半休のため昼休憩は控除しない。splitByNight は {startMs,endMs} 形式なので
-      // allocateSegments が期待する {minutes,isNight} に変換する(sessionWorkと同じ変換)。
-      var segments = T.splitByNight(startMs, endMs).map(function (s) {
-        return { minutes: (s.endMs - s.startMs) / T.MS_PER_MINUTE, isNight: s.isNight };
-      });
-      addBreakdown(breakdown, allocateSegments(cursor, segments, {
-        isLegalHoliday: false,
-        baseHourlyRate: rates.baseHourlyRate,
-        autoFilled: false,
-      }));
-    }
-
-    return breakdown;
   }
 
   /**
@@ -486,7 +471,6 @@
     cloneCursor: cloneCursor,
     allocateSegments: allocateSegments,
     allocateScheduledDay: allocateScheduledDay,
-    allocateHalfDay: allocateHalfDay,
     calcEarnings: calcEarnings,
     isOnBreakAt: isOnBreakAt,
     hasOpenBreak: hasOpenBreak,

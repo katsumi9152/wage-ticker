@@ -6,14 +6,14 @@
 <meta name="theme-color" content="#eef1f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#12161f" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="出勤するだけで金額と労働時間がリアルタイムに積み上がる給料メーター">
+<meta name="description" content="出退勤の時刻から、残業・深夜・休日の割増や休憩控除まで反映してリアルタイムに賃金額を算出する個人用の給料メーター">
 <title>WageTicker</title>
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WageTicker">
-<link rel="stylesheet" href="styles.css?v=20260810l">
+<link rel="stylesheet" href="styles.css?v=20260810m">
 </head>
 <body>
 
@@ -159,7 +159,7 @@
     <p class="disclaimer">
       表示は体感用の目安です。会社の勤怠記録・給与明細の金額とは一致しません。
     </p>
-    <p class="app-version">v20260810l</p>
+    <p class="app-version">v20260810m</p>
   </main>
 </div>
 
@@ -169,6 +169,14 @@
   <div class="confirm-actions">
     <button class="btn btn--ghost" id="confirmNo" type="button">キャンセル</button>
     <button class="btn btn--in" id="confirmYes" type="button">はい</button>
+  </div>
+</dialog>
+
+<!-- ------------------------------------------------------------ お知らせ -->
+<dialog id="infoDialog" class="confirm">
+  <p class="confirm-text" id="infoText">-</p>
+  <div class="confirm-actions">
+    <button class="btn btn--in" id="infoOk" type="button">わかりました</button>
   </div>
 </dialog>
 
@@ -208,12 +216,6 @@
         <select id="setScheduleEnd"></select>
       </div>
       <span class="hint">毎日の標準の勤務時間です。自動モードの計測、カレンダーから打刻を追記するときの初期値にも使います。</span>
-    </div>
-
-    <div class="field">
-      <span class="field-label">半休の区切り時刻</span>
-      <select id="setHalfDayBoundary"></select>
-      <span class="hint">カレンダーで「午前休 / 午後休」を選んだときの境目です。この時刻を境に、休みの半分は有給扱い、残りの半分は実際に勤務したものとして計算します(昼休憩は差し引きません)。</span>
     </div>
 
     <div class="field">
@@ -320,7 +322,6 @@
     <div class="cal-legend">
       <span><i class="sw sw--work"></i>出勤</span>
       <span><i class="sw sw--leave"></i>有給</span>
-      <span><i class="sw sw--half"></i>半休</span>
       <span><i class="sw sw--legal"></i>法定休日</span>
       <span><i class="sw sw--holiday"></i>祝日</span>
       <span><i class="sw sw--scheduled"></i>所定休日</span>
@@ -343,18 +344,8 @@
         <button type="button" data-kind="none">指定なし</button>
         <button type="button" data-kind="work">出勤</button>
         <button type="button" data-kind="paid_leave">有給</button>
-        <button type="button" data-kind="half_day">半休</button>
         <button type="button" data-kind="company_holiday">会社休日</button>
       </div>
-    </div>
-
-    <div class="field" id="dayHalfRow" hidden>
-      <span class="field-label">半休の種類</span>
-      <div class="seg" id="dayHalfKind">
-        <button type="button" data-half="am">午前休</button>
-        <button type="button" data-half="pm">午後休</button>
-      </div>
-      <span class="hint">設定した区切り時刻を境に、休みの半分は有給扱い、残りの半分は標準の勤務時間どおりに勤務したものとして計算します(昼休憩は差し引きません)。</span>
     </div>
 
     <div class="field" id="dayWorkRow" hidden>
@@ -391,13 +382,13 @@
   </div>
 </dialog>
 
-<script src="src/constants.js?v=20260810l"></script>
-<script src="src/time.js?v=20260810l"></script>
-<script src="src/period.js?v=20260810l"></script>
-<script src="src/holidays.js?v=20260810l"></script>
-<script src="src/wage.js?v=20260810l"></script>
-<script src="src/aggregate.js?v=20260810l"></script>
-<script src="src/storage.js?v=20260810l"></script>
-<script src="src/app.js?v=20260810l"></script>
+<script src="src/constants.js?v=20260810m"></script>
+<script src="src/time.js?v=20260810m"></script>
+<script src="src/period.js?v=20260810m"></script>
+<script src="src/holidays.js?v=20260810m"></script>
+<script src="src/wage.js?v=20260810m"></script>
+<script src="src/aggregate.js?v=20260810m"></script>
+<script src="src/storage.js?v=20260810m"></script>
+<script src="src/app.js?v=20260810m"></script>
 </body>
 </html>
