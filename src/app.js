@@ -298,7 +298,7 @@
     $('cmpNote').textContent = prevTotal ? '' : '先月の記録がたまると比べられます';
   }
 
-  /** 状態バッジ。待機中/勤務中/休憩中/自動計測中を色でも見分けられるようにする。 */
+  /** 状態バッジ。待機中/勤務中/休憩中/昼休憩中/残業中/自動計測中を色でも見分けられるようにする。 */
   function renderStatus(live) {
     var badge = $('statusBadge');
     var working = !!ctx.active;
@@ -309,9 +309,13 @@
     } else if (!working) {
       text = '待機中'; state = 'idle';
     } else if (live && live.onBreak) {
-      text = '休憩中'; state = 'break';
+      // 手動の休憩とたまたま重なっていれば、押した操作を優先して「休憩中」にする
+      text = store.isOnManualBreak() ? '休憩中' : '昼休憩中';
+      state = 'break';
     } else if (ctx.active.manual) {
       text = '勤務中'; state = 'working'; // 手動の打刻が優先されている
+    } else if (ctx.settings.autoMode && store.state.overtimeFlag) {
+      text = '残業中'; state = 'auto';
     } else if (ctx.settings.autoMode) {
       text = '自動計測中'; state = 'auto';
     } else {
@@ -643,7 +647,17 @@
       if (!requireSetup()) return;
       // 同じ日に2回目の出勤は「再開」。退勤からいままでは休憩になる。
       var resuming = store.isFinishedToday(Date.now());
-      askConfirm(resuming ? '勤務を再開しますか?(退勤からいままでは休憩になります)' : '出勤しますか?', function () {
+      var msg = resuming ? '勤務を再開しますか?(退勤からいままでは休憩になります)' : '出勤しますか?';
+      // 自動モード中に手動で出勤すると、以後は自動確定の対象から外れる(SPEC 5.3)。
+      // 退勤予定時刻を過ぎても勝手には終わらないので、その場で注意しておく。
+      if (ctx.settings.autoMode) {
+        msg += '(以後は手動扱いになり、退勤予定時刻でも自動的には終わりません。退勤は自分で押してください)';
+      }
+      // 昼休憩の時間帯の途中での出勤は、半休登録のほうが正しい場合があるので注意しておく
+      if (isLunchNow()) {
+        msg += '(いまは昼休憩の時間帯です。半日だけ働く日はカレンダーから半休登録すると、昼休憩を控除せず計算できます)';
+      }
+      askConfirm(msg, function () {
         store.clockIn(Date.now());
         afterPunch();
       });
@@ -652,7 +666,11 @@
     $('clockOutBtn').addEventListener('click', function () {
       // すでに確定済みの日なら、退勤時刻を「いま」に更新する
       var updating = store.state.status !== 'working' && store.isFinishedToday(Date.now());
-      askConfirm(updating ? '退勤時刻を、いまの時刻に更新しますか?' : '退勤しますか?', function () {
+      var msg = updating ? '退勤時刻を、いまの時刻に更新しますか?' : '退勤しますか?';
+      if (isLunchNow()) {
+        msg += '(いまは昼休憩の時間帯です。半日だけ働く日はカレンダーから半休登録すると、昼休憩を控除せず計算できます)';
+      }
+      askConfirm(msg, function () {
         store.clockOut(Date.now());
         afterPunch();
       });

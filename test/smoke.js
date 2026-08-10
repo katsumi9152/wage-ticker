@@ -187,6 +187,27 @@
     eq(S.state.breaks.length, 2, '休憩は何度でも記録できる');
   });
 
+  test('休憩: 昼休憩の時間帯に入ると「昼休憩中」の表示になる', function () {
+    var now = Date.now();
+    var hh = pad2(new Date(now).getHours());
+    S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' }; // 今の時刻を含む1時間
+    refresh();
+    ok(!S.isOnManualBreak(), '前提が崩れている(手動休憩が続いたまま)');
+    eq(el('statusText').textContent, '昼休憩中', '昼休憩中の表示になっていない');
+    ok(el('breakBtn').disabled === true, '昼休憩の最中は手動の休憩ボタンを押せないはず');
+
+    // 手動休憩ともたまたま重なっていれば、押した操作(手動休憩)を優先する
+    S.startBreak(now);
+    refresh();
+    eq(el('statusText').textContent, '休憩中', '昼休憩と重なると手動休憩の表示が消える');
+    S.endBreak(now);
+    S.state.breaks.pop(); // このテスト用に足した休憩は記録に残さない
+    S.saveState();
+
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
+    refresh();
+  });
+
   test('手動: メイン数値・今週・今月が描画される', function () {
     frame();
     ok(/^[0-9,]+$/.test(el('liveInt').textContent), 'メイン金額が数字になっていない: ' + el('liveInt').textContent);
@@ -500,6 +521,7 @@
     frame();
     eq(S.state.overtimeFlag, true, '残業フラグが立っていない');
     eq(el('overtimeBtn').textContent, '残業終了');
+    eq(el('statusText').textContent, '残業中', '残業中の表示に変わっていない');
     el('overtimeBtn').fire('click');
     confirmYes();
     frame();
@@ -512,13 +534,26 @@
     S.state.autoDayKey = null;
     S.state.overtimeFlag = false;
     refresh();
+
+    // 昼休憩の時間帯の途中に押した場合の注意書きだけを先に確認し、他のアサーションに
+    // 影響しないよう、確認後すぐに既定の時間帯へ戻す。
+    var hh = pad2(new Date().getHours());
+    S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' }; // 今の時刻を含む1時間
     el('clockInBtn').fire('click');
+    ok(el('confirmText').textContent.indexOf('半休登録') >= 0,
+      '昼休憩の時間帯中の出勤で、半休登録を促す注意書きが出ていない');
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
     confirmYes();
     frame();
     eq(S.state.status, 'working', '自動モードでも出勤できる');
     eq(el('statusText').textContent, '勤務中', '自動計測ではなく手動の勤務として扱う');
     ok(el('overtimeBtn').hidden === true, '手動で出勤したら残業ボタンは出さない');
+
+    S.settings.breakWindow = { start: hh + ':00', end: hh + ':59' };
     el('clockOutBtn').fire('click');
+    ok(el('confirmText').textContent.indexOf('半休登録') >= 0,
+      '昼休憩の時間帯中の退勤で、半休登録を促す注意書きが出ていない');
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
     confirmYes();
     frame();
     eq(S.state.status, 'off');
@@ -548,6 +583,8 @@
 
     var before = Date.now();
     el('clockInBtn').fire('click');
+    ok(el('confirmText').textContent.indexOf('自動的には終わりません') >= 0,
+      '自動モード中の手動出勤で、自動確定が外れる注意書きが出ていない');
     confirmYes();
     frame();
     ok(S.state.clockInAt >= before, '押した時刻ではなく予定時刻が使われている');
@@ -599,10 +636,17 @@
   test('ブラウザを閉じても、出勤時刻から再計算される', function () {
     S.calendar = {};
     S.settings.autoMode = false;
-    refresh();
 
     // 3時間前に出勤し、そのうち30分は休憩していた状態を作る
     var now = Date.now();
+    // 昼休憩の時間帯を「いま」から確実に離す(今の12時間後)。既定の
+    // 12:00-13:00のままだと、実行時刻によっては下の3時間のセッションと
+    // 重なり、手動休憩30分とは別に自動控除が追加されてテストが
+    // 実行時刻次第で落ちるため。
+    var awayHour = pad2((new Date(now).getHours() + 12) % 24);
+    S.settings.breakWindow = { start: awayHour + ':00', end: awayHour + ':01' };
+    refresh();
+
     S.state.status = 'working';
     S.state.clockInAt = now - 3 * 60 * 60 * 1000;
     S.state.isLegalHoliday = false;
@@ -615,6 +659,9 @@
     S.load();
     eq(S.state.status, 'working', '出勤状態が復元されていない');
     eq(S.state.breaks.length, 1, '休憩の記録が復元されていない');
+    // load() は保存前の breakWindow をそのまま復元するはずだが、
+    // 念のためここでも退避させておく
+    S.settings.breakWindow = { start: awayHour + ':00', end: awayHour + ':01' };
 
     refresh();
     var live = WT.aggregate.computeLive(
@@ -632,6 +679,7 @@
     S.state.status = 'off';
     S.state.clockInAt = null;
     S.state.breaks = [];
+    S.settings.breakWindow = { start: '12:00', end: '13:00' };
     S.saveState();
     refresh();
   });
