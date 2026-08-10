@@ -85,6 +85,20 @@
     ok(el('statsSection').hidden === false);
   });
 
+  test('設定: 今月の残業 / 先月との比較もそれぞれ隠せる', function () {
+    S.settings.showOvertime = false;
+    S.settings.showCompare = false;
+    refresh();
+    ok(el('otCard').hidden === true, '今月の残業を隠せていない');
+    ok(el('compareCard').hidden === true, '先月との比較を隠せていない');
+
+    S.settings.showOvertime = true;
+    S.settings.showCompare = true;
+    refresh();
+    ok(el('otCard').hidden === false);
+    ok(el('compareCard').hidden === false);
+  });
+
   test('残業メーター: 45時間・60時間の目印つきで出る', function () {
     S.settings.monthlyBaseSalary = 300000;
     S.settings.fixedOvertimeHours = 0;

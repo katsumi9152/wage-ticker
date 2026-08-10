@@ -236,7 +236,7 @@
     if ($('detailsPanel').open) renderDetails(monthTotal, live, cmp);
   }
 
-  /** 「今週」「今月」は設定で隠せる。片方だけなら横幅いっぱいに広げる。 */
+  /** 「今週」「今月」「今月の残業」「先月との比較」は設定で隠せる。今週/今月は片方だけなら横幅いっぱいに広げる。 */
   function renderVisibility() {
     var showWeek = ctx.settings.showWeek !== false;
     var showMonth = ctx.settings.showMonth !== false;
@@ -244,6 +244,8 @@
     $('monthCard').hidden = !showMonth;
     $('statsSection').hidden = !showWeek && !showMonth;
     $('statsSection').classList.toggle('is-single', showWeek !== showMonth);
+    $('otCard').hidden = ctx.settings.showOvertime === false;
+    $('compareCard').hidden = ctx.settings.showCompare === false;
   }
 
   /**
@@ -901,6 +903,8 @@
 
     $('setShowWeek').checked = s.showWeek !== false;
     $('setShowMonth').checked = s.showMonth !== false;
+    $('setShowOvertime').checked = s.showOvertime !== false;
+    $('setShowCompare').checked = s.showCompare !== false;
     $('setAutoMode').checked = !!s.autoMode;
     setSelectValue('setScheduleStart', (s.schedule && s.schedule.start) || '09:00');
     setSelectValue('setScheduleEnd', (s.schedule && s.schedule.end) || '17:30');
@@ -937,6 +941,8 @@
     s.observeNationalHolidays = $('setObserveHolidays').checked;
     s.showWeek = $('setShowWeek').checked;
     s.showMonth = $('setShowMonth').checked;
+    s.showOvertime = $('setShowOvertime').checked;
+    s.showCompare = $('setShowCompare').checked;
     s.autoMode = $('setAutoMode').checked;
     s.schedule = { start: $('setScheduleStart').value || '09:00', end: $('setScheduleEnd').value || '17:30' };
 

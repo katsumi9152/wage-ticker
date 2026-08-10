@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="WageTicker">
-<link rel="stylesheet" href="styles.css?v=20260810m">
+<link rel="stylesheet" href="styles.css?v=20260810n">
 </head>
 <body>
 
@@ -110,7 +110,7 @@
     </section>
 
     <!-- 今月の残業メーター。細かい数字は「内訳と目安」に入れる -->
-    <section class="card otcard">
+    <section class="card otcard" id="otCard">
       <div class="ot-head">
         <span class="stat-label">今月の残業</span>
         <span class="ot-now" id="otNow">0:00</span>
@@ -127,7 +127,7 @@
     </section>
 
     <!-- 先月との比較(同じ経過日数時点)。金額は出さず、時間の内訳だけを見せる -->
-    <section class="card compare">
+    <section class="card compare" id="compareCard">
       <div class="stat-label">先月との比較(同じ経過日数)</div>
       <div class="hbar-row">
         <span class="hbar-name">今月</span>
@@ -159,7 +159,7 @@
     <p class="disclaimer">
       表示は体感用の目安です。会社の勤怠記録・給与明細の金額とは一致しません。
     </p>
-    <p class="app-version">v20260810m</p>
+    <p class="app-version">v20260810n</p>
   </main>
 </div>
 
@@ -268,7 +268,11 @@
         <label class="check"><input id="setShowWeek" type="checkbox"> 今週</label>
         <label class="check"><input id="setShowMonth" type="checkbox"> 今月</label>
       </div>
-      <span class="hint">秒単位の金額と、今月の法定時間外は常に表示します。</span>
+      <div class="check-row">
+        <label class="check"><input id="setShowOvertime" type="checkbox"> 今月の残業</label>
+        <label class="check"><input id="setShowCompare" type="checkbox"> 先月との比較</label>
+      </div>
+      <span class="hint">秒単位の金額は常に表示します。</span>
     </div>
 
     <div class="field">
@@ -382,13 +386,13 @@
   </div>
 </dialog>
 
-<script src="src/constants.js?v=20260810m"></script>
-<script src="src/time.js?v=20260810m"></script>
-<script src="src/period.js?v=20260810m"></script>
-<script src="src/holidays.js?v=20260810m"></script>
-<script src="src/wage.js?v=20260810m"></script>
-<script src="src/aggregate.js?v=20260810m"></script>
-<script src="src/storage.js?v=20260810m"></script>
-<script src="src/app.js?v=20260810m"></script>
+<script src="src/constants.js?v=20260810n"></script>
+<script src="src/time.js?v=20260810n"></script>
+<script src="src/period.js?v=20260810n"></script>
+<script src="src/holidays.js?v=20260810n"></script>
+<script src="src/wage.js?v=20260810n"></script>
+<script src="src/aggregate.js?v=20260810n"></script>
+<script src="src/storage.js?v=20260810n"></script>
+<script src="src/app.js?v=20260810n"></script>
 </body>
 </html>
